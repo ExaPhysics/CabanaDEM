@@ -10,9 +10,9 @@
 #include <Cabana_Core.hpp>
 #include <Cabana_Grid.hpp>
 
-#define DIM 2
+#define DIM 3
 
-namespace CabanaLearn
+namespace CabanaDEM
 {
   template <class MemorySpace, int Dimension>
   class Particles
@@ -22,28 +22,24 @@ namespace CabanaLearn
     using execution_space = typename memory_space::execution_space;
     static constexpr int dim = Dimension;
 
-    // x, u, f (vector matching system dimension).
-    using vector_type = Cabana::MemberTypes<double[dim]>;
-    // volume, dilatation, weighted_volume.
-    using scalar_type = Cabana::MemberTypes<double>;
-    // no-fail.
+    using double_type = Cabana::MemberTypes<double>;
     using int_type = Cabana::MemberTypes<int>;
-    // type, W, v, rho, damage.
-    using other_types =
-      Cabana::MemberTypes<int, double, double[dim], double, double>;
-    // Potentially needed later: body force (b), ID.
+    using vec_double_type = Cabana::MemberTypes<double[dim]>;
+    using vec_int_type = Cabana::MemberTypes<int[dim]>;
 
     // FIXME: add vector length.
     // FIXME: enable variable aosoa.
-    using aosoa_u_type = Cabana::AoSoA<vector_type, memory_space, 1>;
-    using aosoa_nofail_type = Cabana::AoSoA<int_type, memory_space, 1>;
-    using aosoa_other_type = Cabana::AoSoA<other_types, memory_space>;
+    using aosoa_double_type = Cabana::AoSoA<double_type, memory_space, 1>;
+    using aosoa_int_type = Cabana::AoSoA<int_type, memory_space, 1>;
+    using aosoa_vec_double_type = Cabana::AoSoA<vec_double_type, memory_space, 1>;
+    using aosoa_vec_int_type = Cabana::AoSoA<vec_int_type, memory_space, 1>;
 
     // Constructor which initializes particles on regular grid.
     template <class ExecSpace>
-    Particles( const ExecSpace& exec_space, std::size_t n )
+    Particles( const ExecSpace& exec_space, std::size_t no_of_particles )
     {
-      resize( n );
+      _no_of_particles = no_of_particles;
+      resize( _no_of_particles );
       createParticles( exec_space );
     }
 
@@ -51,83 +47,139 @@ namespace CabanaLearn
     template <class ExecSpace>
     void createParticles( const ExecSpace& exec_space )
     {
-      auto type = sliceType();
-      auto u = sliceDisplacement();
-      // u.resize(100);
-      auto nofail = sliceNoFail();
+      auto x = slicePosition();
 
       auto create_particles_func = KOKKOS_LAMBDA( const int i )
 	{
 	  for (int j=0; j < DIM; j++){
-	    u( i, j ) = DIM * i + j;
+	    // x( i, j ) = DIM * i + j;
 	  }
 	};
-      Kokkos::RangePolicy<ExecSpace> policy( 0, u.size() );
+      Kokkos::RangePolicy<ExecSpace> policy( 0, x.size() );
       Kokkos::parallel_for( "create_particles_lambda", policy,
 			    create_particles_func );
     }
 
-    auto sliceDisplacement()
+    template <class ExecSpace, class FunctorType>
+    void updateParticles( const ExecSpace, const FunctorType init_functor )
     {
-      return Cabana::slice<0>( _aosoa_u, "displacements" );
+      Kokkos::RangePolicy<ExecSpace> policy( 0, _no_of_particles );
+      Kokkos::parallel_for(
+			   "CabanaPD::Particles::update_particles", policy,
+			   KOKKOS_LAMBDA( const int pid ) { init_functor( pid ); } );
     }
-    auto sliceDisplacement() const
-  {
-    return Cabana::slice<0>( _aosoa_u, "displacements" );
-  }
-  auto sliceType() { return Cabana::slice<0>( _aosoa_other, "type" ); }
-  auto sliceType() const { return Cabana::slice<0>( _aosoa_other, "type" ); }
-  auto sliceStrainEnergy()
-  {
-    return Cabana::slice<1>( _aosoa_other, "strain_energy" );
-  }
-  auto sliceStrainEnergy() const
-  {
-    return Cabana::slice<1>( _aosoa_other, "strain_energy" );
-  }
-  auto sliceVelocity()
-  {
-    return Cabana::slice<2>( _aosoa_other, "velocities" );
-  }
-  auto sliceVelocity() const
-  {
-    return Cabana::slice<2>( _aosoa_other, "velocities" );
-  }
-  auto sliceDensity() { return Cabana::slice<3>( _aosoa_other, "density" ); }
-  auto sliceDensity() const
-  {
-    return Cabana::slice<3>( _aosoa_other, "density" );
-  }
-  auto sliceDamage() { return Cabana::slice<4>( _aosoa_other, "damage" ); }
-  auto sliceDamage() const
-  {
-    return Cabana::slice<4>( _aosoa_other, "damage" );
-  }
-  auto sliceNoFail()
-  {
-    return Cabana::slice<0>( _aosoa_nofail, "no_fail_region" );
-  }
-  auto sliceNoFail() const
-  {
-    return Cabana::slice<0>( _aosoa_nofail, "no_fail_region" );
-  }
 
-  void resize(const std::size_t n)
-  {
-    _aosoa_u.resize( n );
-    _aosoa_nofail.resize( n );
-    _aosoa_other.resize( n );
-  }
+    auto slicePosition()
+    {
+      return Cabana::slice<0>( _x, "positions" );
+    }
+    auto slicePosition() const
+    {
+      return Cabana::slice<0>( _x, "positions" );
+    }
+    auto sliceVelocity()
+    {
+      return Cabana::slice<0>( _u, "velocities" );
+    }
+    auto sliceVelocity() const
+    {
+      return Cabana::slice<0>( _u, "velocities" );
+    }
+    auto sliceAcceleration()
+    {
+      return Cabana::slice<0>( _au, "accelerations" );
+    }
+    auto sliceAcceleration() const
+    {
+      return Cabana::slice<0>( _au, "accelerations" );
+    }
+    auto sliceMass() {
+      return Cabana::slice<0>( _m, "mass" );
+    }
+    auto sliceMass() const
+    {
+      return Cabana::slice<0>( _m, "mass" );
+    }
+    auto sliceDensity() {
+      return Cabana::slice<0>( _rho, "density" );
+    }
+    auto sliceDensity() const
+    {
+      return Cabana::slice<0>( _rho, "density" );
+    }
+    auto sliceRadius() {
+      return Cabana::slice<0>( _rad, "radius" );
+    }
+    auto sliceRadius() const
+    {
+      return Cabana::slice<0>( _rad, "radius" );
+    }
 
+    void resize(const std::size_t n)
+    {
+      _x.resize( n );
+      _u.resize( n );
+      _au.resize( n );
+      _m.resize( n );
+      _rho.resize( n );
+      _rad.resize( n );
+    }
 
-private:
-  aosoa_u_type _aosoa_u;
-  aosoa_nofail_type _aosoa_nofail;
-  aosoa_other_type _aosoa_other;
+    void output(  const int output_step,
+                  const double output_time,
+                  const bool use_reference = true )
+    {
+      // _output_timer.start();
 
-  // Cabana::Experimental::HDF5ParticleOutput::HDF5Config h5_config;
-};
+#ifdef Cabana_ENABLE_HDF5
+      Cabana::Experimental::HDF5ParticleOutput::writeTimeStep(
+							      h5_config,
+							      "particles",
+							      MPI_COMM_WORLD,
+							      output_step,
+							      output_time,
+							      _no_of_particles,
+							      slicePosition(),
+							      sliceVelocity(),
+							      sliceAcceleration(),
+							      sliceMass(),
+							      sliceDensity(),
+							      sliceRadius());
+      // #else
+      // #ifdef Cabana_ENABLE_SILO
+      //       Cabana::Grid::Experimental::SiloParticleOutput::
+      // 	writePartialRangeTimeStep(
+      // 				  "particles", local_grid->globalGrid(), output_step, output_time,
+      // 				  0, n_local, base_type::getPosition( use_reference ),
+      // 				  base_type::sliceStrainEnergy(), base_type::sliceForce(),
+      // 				  base_type::sliceDisplacement(), base_type::sliceVelocity(),
+      // 				  base_type::sliceDamage(), sliceWeightedVolume(),
+      // 				  sliceDilatation() );
+#else
+      std::cout << "No particle output enabled.";
+      // log( std::cout, "No particle output enabled." );
+      // #endif
+#endif
 
-} // namespace CabanaPD
+      // _output_timer.stop();
+    }
+
+  private:
+    int _no_of_particles;
+    aosoa_vec_double_type _x;
+    aosoa_vec_double_type _u;
+    aosoa_vec_double_type _au;
+    aosoa_double_type _m;
+    aosoa_double_type _rho;
+    aosoa_double_type _rad;
+
+#ifdef Cabana_ENABLE_HDF5
+    Cabana::Experimental::HDF5ParticleOutput::HDF5Config h5_config;
+#endif
+
+    // Cabana::Experimental::HDF5ParticleOutput::HDF5Config h5_config;
+  };
+
+} // namespace CabanaDEM
 
 #endif

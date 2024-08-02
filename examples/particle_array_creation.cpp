@@ -12,7 +12,7 @@ template<class MemorySpace, class ExecutionSpace>
 void aosoaExample(const ExecutionSpace& exec_space)
 {
 
-  auto particles = CabanaLearn::Particles<MemorySpace, DIM>(exec_space, 100);
+  auto particles = CabanaDEM::Particles<MemorySpace, DIM>(exec_space, 100);
 
   /*
     Print the label and size data. In this case we have created an AoSoA

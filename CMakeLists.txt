@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.12)
 
 # C only for Cabana HDF5 workaround.
-project(CabanaLearn LANGUAGES CXX C VERSION 0.1.0)
+project(CabanaDEM LANGUAGES CXX C VERSION 0.1.0)
 
 include(GNUInstallDirs)
 
