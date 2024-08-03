@@ -12,6 +12,13 @@ find_package(Cabana 0.6.1 REQUIRED COMPONENTS Cabana::Grid Cabana::Core)
 if( NOT Cabana_ENABLE_MPI )
   message( FATAL_ERROR "Cabana must be compiled with MPI" )
 endif()
+find_package(nlohmann_json 3.10.0 QUIET)
+if(NOT NLOHMANN_JSON_FOUND)
+  include(FetchContent)
+  # Using most recent release here
+  FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.2/json.tar.xz)
+  FetchContent_MakeAvailable(json)
+endif()
 
 # find Clang Format
 find_package( CLANG_FORMAT 14 )

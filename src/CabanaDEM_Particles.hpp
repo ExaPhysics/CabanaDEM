@@ -77,6 +77,7 @@ namespace CabanaDEM
     {
       return Cabana::slice<0>( _x, "positions" );
     }
+
     auto sliceVelocity()
     {
       return Cabana::slice<0>( _u, "velocities" );
@@ -85,6 +86,7 @@ namespace CabanaDEM
     {
       return Cabana::slice<0>( _u, "velocities" );
     }
+
     auto sliceAcceleration()
     {
       return Cabana::slice<0>( _au, "accelerations" );
@@ -93,6 +95,34 @@ namespace CabanaDEM
     {
       return Cabana::slice<0>( _au, "accelerations" );
     }
+
+    auto sliceForce()
+    {
+      return Cabana::slice<0>( _force, "forces" );
+    }
+    auto sliceForce() const
+    {
+      return Cabana::slice<0>( _force, "forces" );
+    }
+
+    auto sliceTorque()
+    {
+      return Cabana::slice<0>( _torque, "torques" );
+    }
+    auto sliceTorque() const
+    {
+      return Cabana::slice<0>( _torque, "torques" );
+    }
+
+    auto sliceOmega()
+    {
+      return Cabana::slice<0>( _omega, "omega" );
+    }
+    auto sliceOmega() const
+    {
+      return Cabana::slice<0>( _omega, "omega" );
+    }
+
     auto sliceMass() {
       return Cabana::slice<0>( _m, "mass" );
     }
@@ -100,6 +130,7 @@ namespace CabanaDEM
     {
       return Cabana::slice<0>( _m, "mass" );
     }
+
     auto sliceDensity() {
       return Cabana::slice<0>( _rho, "density" );
     }
@@ -107,6 +138,7 @@ namespace CabanaDEM
     {
       return Cabana::slice<0>( _rho, "density" );
     }
+
     auto sliceRadius() {
       return Cabana::slice<0>( _rad, "radius" );
     }
@@ -115,14 +147,53 @@ namespace CabanaDEM
       return Cabana::slice<0>( _rad, "radius" );
     }
 
+    auto sliceYoungsMod() {
+      return Cabana::slice<0>( _E, "youngs_mod" );
+    }
+    auto sliceYoungsMod() const
+    {
+      return Cabana::slice<0>( _E, "youngs_mod" );
+    }
+
+    auto slicePoissonsRatio() {
+      return Cabana::slice<0>( _nu, "poissons_ratio" );
+    }
+    auto slicePoissonsRatio() const
+    {
+      return Cabana::slice<0>( _nu, "poissons_ratio" );
+    }
+
+    auto sliceShearMod() {
+      return Cabana::slice<0>( _G, "shear_mod" );
+    }
+    auto sliceShearMod() const
+    {
+      return Cabana::slice<0>( _G, "shear_mod" );
+    }
+
+    auto sliceMomentOfInertia() {
+      return Cabana::slice<0>( _I, "moment_of_inertia" );
+    }
+    auto sliceMomentOfInertia() const
+    {
+      return Cabana::slice<0>( _I, "moment_of_inertia" );
+    }
+
     void resize(const std::size_t n)
     {
       _x.resize( n );
       _u.resize( n );
       _au.resize( n );
+      _force.resize( n );
+      _torque.resize( n );
+      _omega.resize( n );
       _m.resize( n );
       _rho.resize( n );
       _rad.resize( n );
+      _E.resize( n );
+      _nu.resize( n );
+      _G.resize( n );
+      _I.resize( n );
     }
 
     void output(  const int output_step,
@@ -149,16 +220,18 @@ namespace CabanaDEM
       // #ifdef Cabana_ENABLE_SILO
       //       Cabana::Grid::Experimental::SiloParticleOutput::
       // 	writePartialRangeTimeStep(
-      // 				  "particles", local_grid->globalGrid(), output_step, output_time,
-      // 				  0, n_local, base_type::getPosition( use_reference ),
-      // 				  base_type::sliceStrainEnergy(), base_type::sliceForce(),
-      // 				  base_type::sliceDisplacement(), base_type::sliceVelocity(),
-      // 				  base_type::sliceDamage(), sliceWeightedVolume(),
-      // 				  sliceDilatation() );
+      // 				  "particles", output_step, output_time,
+      // 				  _no_of_particles,
+      // 				  slicePosition(),
+      // 				  sliceVelocity(),
+      // 				  sliceAcceleration(),
+      // 				  sliceMass(),
+      // 				  sliceDensity(),
+      // 				  sliceRadius());
 #else
       std::cout << "No particle output enabled.";
       // log( std::cout, "No particle output enabled." );
-      // #endif
+// #endif
 #endif
 
       // _output_timer.stop();
@@ -169,9 +242,16 @@ namespace CabanaDEM
     aosoa_vec_double_type _x;
     aosoa_vec_double_type _u;
     aosoa_vec_double_type _au;
+    aosoa_vec_double_type _force;
+    aosoa_vec_double_type _torque;
+    aosoa_vec_double_type _omega;
     aosoa_double_type _m;
     aosoa_double_type _rho;
     aosoa_double_type _rad;
+    aosoa_double_type _E;
+    aosoa_double_type _nu;
+    aosoa_double_type _G;
+    aosoa_double_type _I;
 
 #ifdef Cabana_ENABLE_HDF5
     Cabana::Experimental::HDF5ParticleOutput::HDF5Config h5_config;

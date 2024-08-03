@@ -1,0 +1,8 @@
+{
+    "density"                : {"value": 100.0,  "unit": ""},
+    "youngs_modulus"         : {"value": 1.0, "unit": ""},
+    "shear_modulus"          : {"value": 0.5, "unit": ""},
+    "final_time"             : {"value": 0.1, "unit": ""},
+    "timestep"               : {"value": 0.0001,  "unit": ""},
+    "output_frequency"       : {"value": 100}
+}

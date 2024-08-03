@@ -10,9 +10,8 @@
 
 #define DIM 3
 
-// Simulate elastic wave propagation from an initial displacement field.
-// void SphereSphereCollision01( const std::string filename )
-void SphereSphereCollision01()
+// Simulate two spherical particles colliding head on
+void SphereSphereCollision01( const std::string filename )
 {
   int comm_rank = -1;
   MPI_Comm_rank( MPI_COMM_WORLD, &comm_rank );
@@ -24,15 +23,15 @@ void SphereSphereCollision01()
   // ====================================================
   //             Use default Kokkos spaces
   // ====================================================
-  // using exec_space = Kokkos::DefaultExecutionSpace;
-  // using memory_space = typename exec_space::memory_space;
-  using exec_space = Kokkos::OpenMP;
+  using exec_space = Kokkos::DefaultExecutionSpace;
   using memory_space = typename exec_space::memory_space;
+  // using exec_space = Kokkos::OpenMP;
+  // using memory_space = typename exec_space::memory_space;
 
-  // // ====================================================
-  // //                   Read inputs
-  // // ====================================================
-  // CabanaDEM::Inputs inputs( filename );
+  // ====================================================
+  //                   Read inputs
+  // ====================================================
+  CabanaDEM::Inputs inputs( filename );
 
   // // ====================================================
   // //                Material parameters
@@ -54,12 +53,12 @@ void SphereSphereCollision01()
   //                     ( ( high_corner[0] - low_corner[0] ) / num_cells[0] ) );
   // int halo_width = m + 1; // Just to be safe.
 
-  // // ====================================================
-  // //                    Force model
-  // // ====================================================
+  // ====================================================
+  //                    Force model
+  // ====================================================
   // using model_type =
-  //   CabanaDEM::ForceModel<CabanaDEM::LinearLPS, CabanaDEM::Elastic>;
-  // model_type force_model( delta, K, G );
+  //   CabanaDEM::Force<exec_space>;
+  // model_type force_model();
 
   // ====================================================
   //                 Particle generation
@@ -76,6 +75,7 @@ void SphereSphereCollision01()
   auto m = particles->sliceMass();
   auto rho = particles->sliceDensity();
   auto rad = particles->sliceRadius();
+  auto I = particles->sliceMomentOfInertia();
 
   auto init_functor = KOKKOS_LAMBDA( const int pid )
       {
@@ -83,40 +83,35 @@ void SphereSphereCollision01()
         double rho_i = 2000.;
         double radius_i = 0.1;
         double m_i = 4. / 3. * M_PI * radius_i * radius_i * radius_i * rho_i;
+        double I_i = 2. / 5. * m_i * radius_i * radius_i;
 	x( pid, 0 ) = -radius_i + pid * (2. * radius_i) + radius_i / 10.;
 	x( pid, 1 ) = 0.;
 	x( pid, 2 ) = 0.;
-	u( pid, 0 ) = 0.0;
+	u( pid, 0 ) = 1.0;
 	u( pid, 1 ) = 0.0;
 	u( pid, 2 ) = 0.0;
 
         m( pid ) = m_i;
+        I( pid ) = I_i;
         rho( pid ) = rho_i;
         rad( pid ) = radius_i;
 
       };
   particles->updateParticles( exec_space{}, init_functor );
-  particles->output( 0, 1. );
-  particles->output( 10, 1.1 );
-  particles->output( 30, 1.1 );
+  // particles->output( 0, 1. );
+  // particles->output( 10, 1.1 );
+  // particles->output( 30, 1.1 );
 
-  // // ====================================================
-  // //                   Create solver
-    // // ====================================================
-    // auto cabana_dem = CabanaDEM::createSolverElastic<memory_space>( inputs, particles, force_model );
+  // ====================================================
+  //                   Create solver
+  // ====================================================
+  auto cabana_dem = CabanaDEM::createSolverDEM<memory_space>( inputs, particles );
 
-    // // ====================================================
-    // //                   Simulation run
-    // // ====================================================
-    // cabana_dem->init();
-    // cabana_dem->run();
-
-    // // ====================================================
-    // //                      Outputs
-    // // ====================================================
-    // // Output displacement along the x-axis
-    // createDisplacementProfile( MPI_COMM_WORLD, num_cells[0], 0,
-    //                            "displacement_profile.txt", *particles );
+  // ====================================================
+  //                   Simulation run
+  // ====================================================
+  // cabana_dem->init();
+  cabana_dem->run();
 }
 
 // Initialize MPI+Kokkos.
@@ -125,8 +120,7 @@ int main( int argc, char* argv[] )
     MPI_Init( &argc, &argv );
     Kokkos::initialize( argc, argv );
 
-    // 01SphereSphereCollision( argv[1] );
-    SphereSphereCollision01();
+    SphereSphereCollision01( argv[1] );
 
     Kokkos::finalize();
     MPI_Finalize();

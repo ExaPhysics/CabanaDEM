@@ -14,6 +14,7 @@ add_library(cabanadem ${SOURCES})
 target_link_libraries(cabanadem
   Cabana::Core
   Cabana::Grid
+  nlohmann_json::nlohmann_json
   )
 
 target_include_directories(cabanadem
