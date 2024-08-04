@@ -52,7 +52,7 @@ namespace CabanaDEM
       // This will be changed (No hard coded values)
       auto cell_ratio = 1.0;
       neighbors = std::make_shared<neighbor_type>( x, 0, x.size(),
-						   2. * 0.1, cell_ratio,
+						   3. * 0.1, cell_ratio,
 						   mesh_min, mesh_max );
     }
 
@@ -78,7 +78,7 @@ namespace CabanaDEM
 
 
 	  // update the neighbours
-	  neighbors->build( x, 0, x.size(), 0.1,
+	  neighbors->build( x, 0, x.size(), 3. * 0.1,
 			    cell_ratio, mesh_min, mesh_max );
 	  // Compute the interaction force
 	  computeForce( *force, *particles, *neighbors, neigh_iter_tag{} );

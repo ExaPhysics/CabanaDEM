@@ -5,5 +5,5 @@
     "poissons_ratio"         : {"value": 0.3, "unit": ""},
     "final_time"             : {"value": 0.1, "unit": ""},
     "timestep"               : {"value": 0.0001,  "unit": ""},
-    "output_frequency"       : {"value": 100}
+    "output_frequency"       : {"value": 10}
 }
