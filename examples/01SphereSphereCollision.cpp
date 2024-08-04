@@ -36,9 +36,10 @@ void SphereSphereCollision01( const std::string filename )
   // // ====================================================
   // //                Material parameters
   // // ====================================================
-  // double rho0 = inputs["density"];
-  // auto K = inputs["bulk_modulus"];
-  // double G = inputs["shear_modulus"];
+  double rho_i = inputs["density"];
+  auto E_i = inputs["youngs_modulus"];
+  double G_i = inputs["shear_modulus"];
+  double nu_i = inputs["poissons_ratio"];
   // double delta = inputs["horizon"];
   // delta += 1e-10;
 
@@ -65,7 +66,7 @@ void SphereSphereCollision01( const std::string filename )
   // ====================================================
   // Does not set displacements, velocities, etc.
   auto particles = std::make_shared<
-    CabanaDEM::Particles<memory_space, DIM>>(exec_space(), 10);
+    CabanaDEM::Particles<memory_space, DIM>>(exec_space(), 2);
 
   // ====================================================
   //            Custom particle initialization
@@ -76,9 +77,12 @@ void SphereSphereCollision01( const std::string filename )
   auto rho = particles->sliceDensity();
   auto rad = particles->sliceRadius();
   auto I = particles->sliceMomentOfInertia();
+  auto E = particles->sliceYoungsMod();
+  auto nu = particles->slicePoissonsRatio();
+  auto G = particles->sliceShearMod();
 
   auto init_functor = KOKKOS_LAMBDA( const int pid )
-      {
+    {
         // Initial conditions: displacements and velocities
         double rho_i = 2000.;
         double radius_i = 0.1;
@@ -88,6 +92,7 @@ void SphereSphereCollision01( const std::string filename )
 	x( pid, 1 ) = 0.;
 	x( pid, 2 ) = 0.;
 	u( pid, 0 ) = 1.0;
+	if (pid == 1) u( pid, 0 ) = -1.0;
 	u( pid, 1 ) = 0.0;
 	u( pid, 2 ) = 0.0;
 
@@ -95,12 +100,23 @@ void SphereSphereCollision01( const std::string filename )
         I( pid ) = I_i;
         rho( pid ) = rho_i;
         rad( pid ) = radius_i;
-
+        E( pid ) = E_i;
+        G( pid ) = G_i;
+        nu( pid ) = nu_i;
       };
   particles->updateParticles( exec_space{}, init_functor );
-  // particles->output( 0, 1. );
-  // particles->output( 10, 1.1 );
-  // particles->output( 30, 1.1 );
+
+  // ====================================================
+  //                 Set the neighbours mesh limits
+  // ====================================================
+  particles->mesh_lo[0] = -4. * 0.1;
+  particles->mesh_lo[1] = -4. * 0.1;
+  particles->mesh_lo[2] = -4. * 0.1;
+
+  particles->mesh_hi[0] = 4. * 0.1;
+  particles->mesh_hi[1] = 4. * 0.1;
+  particles->mesh_hi[2] = 4. * 0.1;
+
 
   // ====================================================
   //                   Create solver

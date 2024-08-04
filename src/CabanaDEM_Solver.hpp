@@ -18,6 +18,12 @@ namespace CabanaDEM
     using integrator_type = Integrator<exec_space>;
     using force_type = CabanaDEM::Force<exec_space>;
 
+    // TODO, check this with odler examples
+    using neighbor_type =
+      Cabana::VerletList<memory_space, Cabana::FullNeighborTag,
+			 Cabana::VerletLayout2D, Cabana::TeamOpTag>;
+    using neigh_iter_tag = Cabana::SerialOpTag;
+
     using input_type = InputType;
 
     SolverDEM(input_type _inputs,
@@ -33,10 +39,35 @@ namespace CabanaDEM
       integrator = std::make_shared<integrator_type>( dt );
 
       force = std::make_shared<force_type>();
+
+      double mesh_min[3] = {
+	particles->mesh_lo[0],
+	particles->mesh_lo[1],
+	particles->mesh_lo[2]};
+      double mesh_max[3] = {
+	particles->mesh_hi[0],
+	particles->mesh_hi[1],
+	particles->mesh_hi[2]};
+      auto x = particles->slicePosition();
+      // This will be changed (No hard coded values)
+      auto cell_ratio = 1.0;
+      neighbors = std::make_shared<neighbor_type>( x, 0, x.size(),
+						   2. * 0.1, cell_ratio,
+						   mesh_min, mesh_max );
     }
 
     void run()
     {
+      auto x = particles->slicePosition();
+      auto cell_ratio = 1.0;
+      double mesh_min[3] = {
+	particles->mesh_lo[0],
+	particles->mesh_lo[1],
+	particles->mesh_lo[2]};
+      double mesh_max[3] = {
+	particles->mesh_hi[0],
+	particles->mesh_hi[1],
+	particles->mesh_hi[2]};
       // Main timestep loop.
       for ( int step = 0; step <= num_steps; step++ )
 	{
@@ -45,8 +76,12 @@ namespace CabanaDEM
 
 	  integrator->stage2( *particles );
 
-	  // // Compute the interaction force
-	  // computeForce( *force, *particles, *neighbors, neigh_iter_tag{} );
+
+	  // update the neighbours
+	  neighbors->build( x, 0, x.size(), 0.1,
+			    cell_ratio, mesh_min, mesh_max );
+	  // Compute the interaction force
+	  computeForce( *force, *particles, *neighbors, neigh_iter_tag{} );
 
 
 	  integrator->stage3( *particles );
@@ -74,6 +109,7 @@ namespace CabanaDEM
     std::shared_ptr<particle_type> particles;
     std::shared_ptr<integrator_type> integrator;
     std::shared_ptr<force_type> force;
+    std::shared_ptr<neighbor_type> neighbors;
   };
 
 

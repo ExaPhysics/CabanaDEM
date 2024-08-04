@@ -34,6 +34,9 @@ namespace CabanaDEM
     using aosoa_vec_double_type = Cabana::AoSoA<vec_double_type, memory_space, 1>;
     using aosoa_vec_int_type = Cabana::AoSoA<vec_int_type, memory_space, 1>;
 
+    std::array<double, DIM> mesh_lo;
+    std::array<double, DIM> mesh_hi;
+
     // Constructor which initializes particles on regular grid.
     template <class ExecSpace>
     Particles( const ExecSpace& exec_space, std::size_t no_of_particles )
@@ -41,6 +44,12 @@ namespace CabanaDEM
       _no_of_particles = no_of_particles;
       resize( _no_of_particles );
       createParticles( exec_space );
+      // Set dummy values here, reset them in particular examples
+      for ( int d = 0; d < dim; d++ )
+	{
+	  mesh_lo[d] = 0.0;
+	  mesh_hi[d] = 0.0;
+	}
     }
 
     // Constructor which initializes particles on regular grid.

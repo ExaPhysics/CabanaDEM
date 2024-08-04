@@ -22,9 +22,10 @@ namespace CabanaDEM
     {
     }
 
-    template <class ParticleType, class NeighListType>
+    template <class ParticleType, class NeighListType, class ParallelType>
     void computeForceFull(ParticleType& particles,
-			  const NeighListType& neigh_list)
+			  const NeighListType& neigh_list,
+			  ParallelType& neigh_op_tag)
     {
       auto x = particles.slicePosition();
       auto u = particles.sliceVelocity();
@@ -42,131 +43,131 @@ namespace CabanaDEM
       Cabana::deep_copy( force, 0. );
       Cabana::deep_copy( torque, 0. );
 
-      // auto force_full = KOKKOS_LAMBDA( const int i, const int j )
-      // 	{
-      //     /*
-      // 	    Common to all equations in SPH.
+      auto force_full = KOKKOS_LAMBDA( const int i, const int j )
+	{
+          /*
+	    Common to all equations in SPH.
 
-      // 	    We compute:
-      // 	    1.the vector passing from j to i
-      // 	    2. Distance between the points i and j
-      // 	    3. Distance square between the points i and j
-      // 	    4. Velocity vector difference between i and j
-      // 	    5. Kernel value
-      // 	    6. Derivative of kernel value
-      //     */
-      //     double pos_i[3] = {x( i, 0 ),
-      // 	    x( i, 1 ),
-      // 	    x( i, 2 )};
+	    We compute:
+	    1.the vector passing from j to i
+	    2. Distance between the points i and j
+	    3. Distance square between the points i and j
+	    4. Velocity vector difference between i and j
+	    5. Kernel value
+	    6. Derivative of kernel value
+          */
+          double pos_i[3] = {x( i, 0 ),
+	    x( i, 1 ),
+	    x( i, 2 )};
 
-      //     double pos_j[3] = {x( j, 0 ),
-      // 	    x( j, 1 ),
-      // 	    x( j, 2 )};
+          double pos_j[3] = {x( j, 0 ),
+	    x( j, 1 ),
+	    x( j, 2 )};
 
-      //     double pos_ij[3] = {x( i, 0 ) - x( j, 0 ),
-      // 	    x( i, 1 ) - x( j, 1 ),
-      // 	    x( i, 2 ) - x( j, 2 )};
+          double pos_ij[3] = {x( i, 0 ) - x( j, 0 ),
+	    x( i, 1 ) - x( j, 1 ),
+	    x( i, 2 ) - x( j, 2 )};
 
-      //     // squared distance
-      //     double r2ij = pos_ij[0] * pos_ij[0] + pos_ij[1] * pos_ij[1] + pos_ij[2] * pos_ij[2];
-      //     // distance between i and j
-      //     double rij = sqrt(r2ij);
+          // squared distance
+          double r2ij = pos_ij[0] * pos_ij[0] + pos_ij[1] * pos_ij[1] + pos_ij[2] * pos_ij[2];
+          // distance between i and j
+          double rij = sqrt(r2ij);
 
-      //     // const double mass_i = aosoa_mass( i );
-      //     const double mass_j = m ( j );
+          // const double mass_i = aosoa_mass( i );
+          const double mass_j = m ( j );
 
-      //     // Find the overlap amount
-      //     double overlap =  rad ( i ) + rad ( j ) - rij;
+          // Find the overlap amount
+          double overlap =  rad ( i ) + rad ( j ) - rij;
 
-      //     double a_i = rad ( i ) - overlap / 2.;
-      //     double a_j = rad ( j ) - overlap / 2.;
+          double a_i = rad ( i ) - overlap / 2.;
+          double a_j = rad ( j ) - overlap / 2.;
 
-      //     // normal vector passing from j to i
-      //     double nij_x = pos_ij[0] / rij;
-      //     double nij_y = pos_ij[1] / rij;
-      //     double nij_z = pos_ij[2] / rij;
+          // normal vector passing from j to i
+          double nij_x = pos_ij[0] / rij;
+          double nij_y = pos_ij[1] / rij;
+          double nij_z = pos_ij[2] / rij;
 
-      //     double vel_i[3] = {0., 0., 0.};
+          double vel_i[3] = {0., 0., 0.};
 
-      //     vel_i[0] = u ( i, 0 ) +
-      //     (omega( i, 1 ) * nij_z - omega( i, 2 ) * nij_y) * a_i;
+          vel_i[0] = u ( i, 0 ) +
+          (omega( i, 1 ) * nij_z - omega( i, 2 ) * nij_y) * a_i;
 
-      //     vel_i[1] = u ( i, 1 ) +
-      //     (omega( i, 2 ) * nij_x - omega( i, 0 ) * nij_z) * a_i;
+          vel_i[1] = u ( i, 1 ) +
+          (omega( i, 2 ) * nij_x - omega( i, 0 ) * nij_z) * a_i;
 
-      //     vel_i[2] = u ( i, 2 ) +
-      //     (omega( i, 0 ) * nij_y - omega( i, 1 ) * nij_x) * a_i;
+          vel_i[2] = u ( i, 2 ) +
+          (omega( i, 0 ) * nij_y - omega( i, 1 ) * nij_x) * a_i;
 
-      //     double vel_j[3] = {0., 0., 0.};
+          double vel_j[3] = {0., 0., 0.};
 
-      //     vel_j[0] = u ( j, 0 ) +
-      //     (-omega( j, 1 ) * nij_z + omega( j, 2 ) * nij_y) * a_j;
+          vel_j[0] = u ( j, 0 ) +
+          (-omega( j, 1 ) * nij_z + omega( j, 2 ) * nij_y) * a_j;
 
-      //     vel_j[1] = u ( i, 1 ) +
-      //     (-omega( j, 2 ) * nij_x + omega( j, 0 ) * nij_z) * a_j;
+          vel_j[1] = u ( i, 1 ) +
+          (-omega( j, 2 ) * nij_x + omega( j, 0 ) * nij_z) * a_j;
 
-      //     vel_j[2] = u ( i, 2 ) +
-      //     (-omega( j, 0 ) * nij_y + omega( j, 1 ) * nij_x) * a_j;
+          vel_j[2] = u ( i, 2 ) +
+          (-omega( j, 0 ) * nij_y + omega( j, 1 ) * nij_x) * a_j;
 
-      //     // Now the relative velocity of particle i w.r.t j at the contact
-      //     // point is
-      //     double vel_ij[3] = {vel_i[0] - vel_j[0],
-      // 	    vel_i[1] - vel_j[1],
-      // 	    vel_i[2] - vel_j[2]};
+          // Now the relative velocity of particle i w.r.t j at the contact
+          // point is
+          double vel_ij[3] = {vel_i[0] - vel_j[0],
+	    vel_i[1] - vel_j[1],
+	    vel_i[2] - vel_j[2]};
 
-      //     // normal velocity magnitude
-      //     double vij_dot_nij = vel_ij[0] * nij_x + vel_ij[1] * nij_y + vel_ij[2] * nij_z;
-      //     double vn_x = vij_dot_nij * nij_x;
-      //     double vn_y = vij_dot_nij * nij_y;
-      //     double vn_z = vij_dot_nij * nij_z;
+          // normal velocity magnitude
+          double vij_dot_nij = vel_ij[0] * nij_x + vel_ij[1] * nij_y + vel_ij[2] * nij_z;
+          double vn_x = vij_dot_nij * nij_x;
+          double vn_y = vij_dot_nij * nij_y;
+          double vn_z = vij_dot_nij * nij_z;
 
-      //     // tangential velocity
-      //     double vt_x = vel_ij[0] - vn_x;
-      //     double vt_y = vel_ij[1] - vn_y;
-      //     double vt_z = vel_ij[2] - vn_z;
+          // tangential velocity
+          double vt_x = vel_ij[0] - vn_x;
+          double vt_y = vel_ij[1] - vn_y;
+          double vt_z = vel_ij[2] - vn_z;
 
-      //     /*
-      // 	    ====================================
-      // 	    End: common to all equations in SPH.
-      // 	    ====================================
-      //     */
-      //     // find the force if the particles are overlapping
-      //     if (overlap > 0.) {
+          /*
+	    ====================================
+	    End: common to all equations in SPH.
+	    ====================================
+          */
+          // find the force if the particles are overlapping
+          if (overlap > 0.) {
 
-      // 	    // Compute stiffness
-      // 	    // effective Young's modulus
-      // 	    double tmp_1 = (1. - (nu( i )*nu( i ))) / E( i );
-      // 	    double tmp_2 = (1. - (nu( j )*nu( j ))) / E( j );
-      // 	    double E_eff = 1. / (tmp_1 + tmp_2);
-      // 	    double tmp_3 = 1. / rad( i );
-      // 	    double tmp_4 = 1. / rad( j );
-      // 	    double R_eff = 1. / (tmp_3 + tmp_4);
-      // 	    // # Eq 4 [1]
-      // 	    double kn = 4. / 3. * E_eff * sqrt(R_eff);
+	    // Compute stiffness
+	    // effective Young's modulus
+	    double tmp_1 = (1. - (nu( i )*nu( i ))) / E( i );
+	    double tmp_2 = (1. - (nu( j )*nu( j ))) / E( j );
+	    double E_eff = 1. / (tmp_1 + tmp_2);
+	    double tmp_3 = 1. / rad( i );
+	    double tmp_4 = 1. / rad( j );
+	    double R_eff = 1. / (tmp_3 + tmp_4);
+	    // # Eq 4 [1]
+	    double kn = 4. / 3. * E_eff * sqrt(R_eff);
 
-      // 	    // normal force
-      // 	    double fn =  kn * pow(overlap, 1.5);
-      // 	    double fn_x = fn * nij_x;
-      // 	    double fn_y = fn * nij_y;
-      // 	    double fn_z = fn * nij_z;
+	    // normal force
+	    double fn =  kn * pow(overlap, 1.5);
+	    double fn_x = fn * nij_x;
+	    double fn_y = fn * nij_y;
+	    double fn_z = fn * nij_z;
 
-      // 	    // Add force to the particle i due to contact with particle j
-      // 	    aosoa_force( i, 0 ) += fn_x;
-      // 	    aosoa_force( i, 1 ) += fn_y;
-      // 	    aosoa_force( i, 2 ) += fn_z;
-      //     }
+	    // Add force to the particle i due to contact with particle j
+	    force( i, 0 ) += fn_x;
+	    force( i, 1 ) += fn_y;
+	    force( i, 2 ) += fn_z;
+          }
 
-      //   };
+        };
 
-      // Kokkos::RangePolicy<ExecutionSpace> policy(limits[0], limits[1]);
+      Kokkos::RangePolicy<ExecutionSpace> policy(0, u.size());
 
 
-      // Cabana::neighbor_parallel_for( policy,
-      // 				     force_full,
-      // 				     *verlet_list,
-      // 				     Cabana::FirstNeighborsTag(),
-      // 				     Cabana::SerialOpTag(),
-      // 				     "CabanaDEM::ForceFull" );
+      Cabana::neighbor_parallel_for( policy,
+				     force_full,
+				     neigh_list,
+				     Cabana::FirstNeighborsTag(),
+				     neigh_op_tag,
+				     "CabanaDEM::ForceFull" );
       // Kokkos::fence();
     }
 
@@ -269,6 +270,21 @@ namespace CabanaDEM
     // }
 
   };
+
+
+
+  /******************************************************************************
+  Force free functions.
+  ******************************************************************************/
+  template <class ForceType, class ParticleType, class NeighListType,
+	    class ParallelType>
+  void computeForce( ForceType& force, ParticleType& particles,
+		     const NeighListType& neigh_list,
+		     const ParallelType& neigh_op_tag )
+  {
+    force.computeForceFull( particles, neigh_list, neigh_op_tag );
+    Kokkos::fence();
+  }
 }
 
 #endif
