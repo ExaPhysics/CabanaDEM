@@ -45,7 +45,7 @@ namespace CabanaDEM
 	  u( i, 1 ) += _half_dt * force( i, 1 ) * m_inverse;
 	  u( i, 2 ) += _half_dt * force( i, 2 ) * m_inverse;
 
-	  double I_inverse = I ( i );
+	  double I_inverse = 1. / I ( i );
 	  omega( i, 0 ) += _half_dt * torque( i, 0 ) * I_inverse;
 	  omega( i, 1 ) += _half_dt * torque( i, 1 ) * I_inverse;
 	  omega( i, 2 ) += _half_dt * torque( i, 2 ) * I_inverse;
@@ -92,7 +92,7 @@ namespace CabanaDEM
 	  u( i, 1 ) += _half_dt * force( i, 1 ) * m_inverse;
 	  u( i, 2 ) += _half_dt * force( i, 2 ) * m_inverse;
 
-	  double I_inverse = I ( i );
+	  double I_inverse = 1. / I ( i );
 	  omega( i, 0 ) += _half_dt * torque( i, 0 ) * I_inverse;
 	  omega( i, 1 ) += _half_dt * torque( i, 1 ) * I_inverse;
 	  omega( i, 2 ) += _half_dt * torque( i, 2 ) * I_inverse;

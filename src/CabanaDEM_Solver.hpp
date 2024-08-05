@@ -71,7 +71,6 @@ namespace CabanaDEM
       // Main timestep loop.
       for ( int step = 0; step <= num_steps; step++ )
 	{
-	  // Integrate - velocity Verlet first half.
 	  integrator->stage1( *particles );
 
 	  integrator->stage2( *particles );

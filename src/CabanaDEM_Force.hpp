@@ -22,6 +22,8 @@ namespace CabanaDEM
     {
     }
 
+    ~Force() {}
+
     template <class ParticleType, class NeighListType, class ParallelType>
     void computeForceFull(ParticleType& particles,
 			  const NeighListType& neigh_list,
