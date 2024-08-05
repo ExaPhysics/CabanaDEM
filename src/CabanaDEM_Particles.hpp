@@ -2,6 +2,7 @@
 #define PARTICLES_H
 
 #include <memory>
+#include <filesystem> // or #include <filesystem> for C++17 and up
 
 #include "mpi.h"
 
@@ -9,6 +10,10 @@
 
 #include <Cabana_Core.hpp>
 #include <Cabana_Grid.hpp>
+
+
+namespace fs = std::filesystem;
+
 
 #define DIM 3
 
@@ -39,9 +44,16 @@ namespace CabanaDEM
 
     // Constructor which initializes particles on regular grid.
     template <class ExecSpace>
-    Particles( const ExecSpace& exec_space, std::size_t no_of_particles )
+    Particles( const ExecSpace& exec_space, std::size_t no_of_particles, std::string output_folder_name )
     {
       _no_of_particles = no_of_particles;
+      _output_folder_name = output_folder_name;
+      // create the output folder if it doesn't exist
+
+      if (!fs::is_directory(_output_folder_name) || !fs::exists(_output_folder_name)) { // Check if src folder exists
+	fs::create_directory(_output_folder_name); // create src folder
+      }
+
       resize( _no_of_particles );
       createParticles( exec_space );
       // Set dummy values here, reset them in particular examples
@@ -214,6 +226,7 @@ namespace CabanaDEM
 #ifdef Cabana_ENABLE_HDF5
       Cabana::Experimental::HDF5ParticleOutput::writeTimeStep(
 							      h5_config,
+							      // _output_folder_name+"/particles",
 							      "particles",
 							      MPI_COMM_WORLD,
 							      output_step,
@@ -222,6 +235,7 @@ namespace CabanaDEM
 							      slicePosition(),
 							      sliceVelocity(),
 							      sliceAcceleration(),
+							      sliceForce(),
 							      sliceMass(),
 							      sliceDensity(),
 							      sliceRadius());
@@ -261,6 +275,7 @@ namespace CabanaDEM
     aosoa_double_type _nu;
     aosoa_double_type _G;
     aosoa_double_type _I;
+    std::string _output_folder_name;
 
 #ifdef Cabana_ENABLE_HDF5
     Cabana::Experimental::HDF5ParticleOutput::HDF5Config h5_config;

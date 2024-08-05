@@ -1,0 +1,10 @@
+{
+    "density"                : {"value": 2000.0,  "unit": ""},
+    "radius"                 : {"value": 0.01,  "unit": ""},
+    "youngs_modulus"         : {"value": 48e9, "unit": ""},
+    "shear_modulus"          : {"value": 2e10, "unit": ""},
+    "poissons_ratio"         : {"value": 0.2, "unit": ""},
+    "final_time"             : {"value": 80e-6, "unit": ""},
+    "timestep"               : {"value": 1e-7,  "unit": ""},
+    "output_frequency"       : {"value": 30}
+}

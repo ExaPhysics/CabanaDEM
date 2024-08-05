@@ -1,7 +1,22 @@
-add_executable(01SphereSphereCollision 01SphereSphereCollision.cpp)
-target_link_libraries(01SphereSphereCollision PRIVATE cabanadem)
+add_executable(01ElasticNormalImpactOfTwoIdenticalParticles 01_elastic_normal_impact_of_two_identical_particles.cpp)
+target_link_libraries(01ElasticNormalImpactOfTwoIdenticalParticles PRIVATE cabanadem)
 
-install(TARGETS 01SphereSphereCollision DESTINATION ${CMAKE_INSTALL_BINDIR})
+# add_executable(02ElasticNormalImpactOfParticleWall 02_elastic_normal_impact_of_particle_wall.cpp)
+# target_link_libraries(02ElasticNormalImpactOfParticleWall PRIVATE cabanadem)
+
+# add_executable(03NormalParticleWallDifferentCOR 03_normal_particle_wall_different_cor.cpp)
+# target_link_libraries(03NormalParticleWallDifferentCOR PRIVATE cabanadem)
+
+# add_executable(04ObliqueParticleWallDifferentAngles 04_oblique_particle_wall_different_angles.cpp)
+# target_link_libraries(04ObliqueParticleWallDifferentAngles PRIVATE cabanadem)
+
+# install(TARGETS 01ElasticNormalImpactOfTwoIdenticalParticles
+#   02ElasticNormalImpactOfParticleWall 03NormalParticleWallDifferentCOR
+#   04ObliqueParticleWallDifferentAngles DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+
+install(TARGETS 01ElasticNormalImpactOfTwoIdenticalParticles
+  DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 
 add_definitions(-w)
