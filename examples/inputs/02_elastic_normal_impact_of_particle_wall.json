@@ -1,0 +1,18 @@
+{
+    "particle_density"                : {"value": 2699.0,  "unit": ""},
+    "particle_radius"                 : {"value": 0.1,  "unit": ""},
+    "particle_youngs_modulus"         : {"value": 70e9, "unit": ""},
+    "particle_shear_modulus"          : {"value": 26923076923.07, "unit": ""},
+    "particle_poissons_ratio"         : {"value": 0.3, "unit": ""},
+    "wall_youngs_modulus"             : {"value": 70e9, "unit": ""},
+    "wall_shear_modulus"              : {"value": 26923076923.07, "unit": ""},
+    "wall_poissons_ratio"             : {"value": 0.3, "unit": ""},
+    "coefficient_of_restitution_pp"   : {"value": 1.0, "unit": ""},
+    "coefficient_of_restitution_pw"   : {"value": 1.0, "unit": ""},
+    "friction_pp"                     : {"value": 0.0, "unit": ""},
+    "friction_pw"                     : {"value": 0.0, "unit": ""},
+    "velocity_p"                      : {"value": 0.2, "unit": ""},
+    "final_time"                      : {"value": 3e-3, "unit": ""},
+    "timestep"                        : {"value": 1e-6,  "unit": ""},
+    "output_frequency"                : {"value": 30}
+}

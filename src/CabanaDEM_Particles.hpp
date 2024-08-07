@@ -1,5 +1,5 @@
-#ifndef PARTICLES_H
-#define PARTICLES_H
+#ifndef CabanaDEMParticles_HPP
+#define CabanaDEMParticles_HPP
 
 #include <memory>
 #include <filesystem> // or #include <filesystem> for C++17 and up
@@ -19,7 +19,7 @@ namespace fs = std::filesystem;
 
 namespace CabanaDEM
 {
-  template <class MemorySpace, int Dimension>
+  template <class MemorySpace, int Dimension, int MaxCnts, int MaxNoWalls>
   class Particles
   {
   public:
@@ -31,6 +31,9 @@ namespace CabanaDEM
     using int_type = Cabana::MemberTypes<int>;
     using vec_double_type = Cabana::MemberTypes<double[dim]>;
     using vec_int_type = Cabana::MemberTypes<int[dim]>;
+    using wall_cnt_double_type = Cabana::MemberTypes<double[MaxNoWalls]>;
+    using track_cnt_double_type = Cabana::MemberTypes<double[MaxCnts]>;
+    using track_cnt_int_type = Cabana::MemberTypes<int[MaxCnts]>;
 
     // FIXME: add vector length.
     // FIXME: enable variable aosoa.
@@ -38,6 +41,9 @@ namespace CabanaDEM
     using aosoa_int_type = Cabana::AoSoA<int_type, memory_space, 1>;
     using aosoa_vec_double_type = Cabana::AoSoA<vec_double_type, memory_space, 1>;
     using aosoa_vec_int_type = Cabana::AoSoA<vec_int_type, memory_space, 1>;
+    using aosoa_wall_cnt_double_type = Cabana::AoSoA<wall_cnt_double_type, memory_space, 1>;
+    using aosoa_track_cnt_double_type = Cabana::AoSoA<track_cnt_double_type, memory_space, 1>;
+    using aosoa_track_cnt_int_type = Cabana::AoSoA<track_cnt_int_type, memory_space, 1>;
 
     std::array<double, DIM> mesh_lo;
     std::array<double, DIM> mesh_hi;
@@ -200,6 +206,62 @@ namespace CabanaDEM
       return Cabana::slice<0>( _I, "moment_of_inertia" );
     }
 
+    auto sliceTangentialDispSWx() {
+      return Cabana::slice<0>( _tangential_disp_sw_x, "tangential_disp_sw_x" );
+    }
+    auto sliceTangentialDispSWx() const
+    {
+	return Cabana::slice<0>( _tangential_disp_sw_x, "tangential_disp_sw_x" );
+    }
+
+    auto sliceTangentialDispSWy() {
+      return Cabana::slice<0>( _tangential_disp_sw_y, "tangential_disp_sw_y" );
+    }
+    auto sliceTangentialDispSWy() const
+    {
+	return Cabana::slice<0>( _tangential_disp_sw_y, "tangential_disp_sw_y" );
+    }
+
+    auto sliceTangentialDispSWz() {
+      return Cabana::slice<0>( _tangential_disp_sw_z, "tangential_disp_sw_z" );
+    }
+    auto sliceTangentialDispSWz() const
+    {
+	return Cabana::slice<0>( _tangential_disp_sw_z, "tangential_disp_sw_z" );
+    }
+
+    auto sliceTangentialDispSSx() {
+      return Cabana::slice<0>( _tangential_disp_ss_x, "tangential_disp_ss_x" );
+    }
+    auto sliceTangentialDispSSx() const
+    {
+	return Cabana::slice<0>( _tangential_disp_ss_x, "tangential_disp_ss_x" );
+    }
+
+    auto sliceTangentialDispSSy() {
+      return Cabana::slice<0>( _tangential_disp_ss_y, "tangential_disp_ss_y" );
+    }
+    auto sliceTangentialDispSSy() const
+    {
+	return Cabana::slice<0>( _tangential_disp_ss_y, "tangential_disp_ss_y" );
+    }
+
+    auto sliceTangentialDispSSz() {
+      return Cabana::slice<0>( _tangential_disp_ss_z, "tangential_disp_ss_z" );
+    }
+    auto sliceTangentialDispSSz() const
+    {
+	return Cabana::slice<0>( _tangential_disp_ss_z, "tangential_disp_ss_z" );
+    }
+
+    auto sliceTangentialDispIdx() {
+      return Cabana::slice<0>( _tangential_disp_idx, "tangential_disp_idx" );
+    }
+    auto sliceTangentialDispIdx() const
+    {
+	return Cabana::slice<0>( _tangential_disp_idx, "tangential_disp_idx" );
+    }
+
     void resize(const std::size_t n)
     {
       _x.resize( n );
@@ -215,19 +277,26 @@ namespace CabanaDEM
       _nu.resize( n );
       _G.resize( n );
       _I.resize( n );
+      _tangential_disp_sw_x.resize( n );
+      _tangential_disp_sw_y.resize( n );
+      _tangential_disp_sw_z.resize( n );
+      _tangential_disp_ss_x.resize( n );
+      _tangential_disp_ss_y.resize( n );
+      _tangential_disp_ss_z.resize( n );
+      _tangential_disp_idx.resize( n );
     }
 
     void output(  const int output_step,
-                  const double output_time,
-                  const bool use_reference = true )
+		  const double output_time,
+		  const bool use_reference = true )
     {
       // _output_timer.start();
 
 #ifdef Cabana_ENABLE_HDF5
       Cabana::Experimental::HDF5ParticleOutput::writeTimeStep(
 							      h5_config,
-							      // _output_folder_name+"/particles",
-							      "particles",
+							      _output_folder_name+"/particles",
+							      // "particles",
 							      MPI_COMM_WORLD,
 							      output_step,
 							      output_time,
@@ -254,7 +323,7 @@ namespace CabanaDEM
 #else
       std::cout << "No particle output enabled.";
       // log( std::cout, "No particle output enabled." );
-// #endif
+      // #endif
 #endif
 
       // _output_timer.stop();
@@ -275,6 +344,13 @@ namespace CabanaDEM
     aosoa_double_type _nu;
     aosoa_double_type _G;
     aosoa_double_type _I;
+    aosoa_wall_cnt_double_type _tangential_disp_sw_x;
+    aosoa_wall_cnt_double_type _tangential_disp_sw_y;
+    aosoa_wall_cnt_double_type _tangential_disp_sw_z;
+    aosoa_track_cnt_double_type _tangential_disp_ss_x;
+    aosoa_track_cnt_double_type _tangential_disp_ss_y;
+    aosoa_track_cnt_double_type _tangential_disp_ss_z;
+    aosoa_track_cnt_int_type _tangential_disp_idx;
     std::string _output_folder_name;
 
 #ifdef Cabana_ENABLE_HDF5

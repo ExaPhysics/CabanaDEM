@@ -7,7 +7,9 @@
 
 namespace CabanaDEM
 {
-  template <class MemorySpace, class InputType, class ParticleType>
+  template <class MemorySpace, class InputType, class ParticleType,
+	    class WallType,
+	    class ForceModel>
   class SolverDEM
   {
   public:
@@ -15,8 +17,9 @@ namespace CabanaDEM
     using exec_space = typename memory_space::execution_space;
 
     using particle_type = ParticleType;
+    using wall_type = WallType;
     using integrator_type = Integrator<exec_space>;
-    using force_type = CabanaDEM::Force<exec_space>;
+    using force_type = ForceModel;
 
     // TODO, check this with odler examples
     using neighbor_type =
@@ -27,9 +30,15 @@ namespace CabanaDEM
     using input_type = InputType;
 
     SolverDEM(input_type _inputs,
-	      std::shared_ptr<particle_type> _particles)
+	      std::shared_ptr<particle_type> _particles,
+	      std::shared_ptr<wall_type> _wall,
+	      std::shared_ptr<force_type> _force,
+	      double _delta)
       : inputs( _inputs ),
-	particles( _particles )
+	particles( _particles ),
+	wall( _wall ),
+	force( _force),
+	delta( _delta)
     {
       num_steps = inputs["num_steps"];
       output_frequency = inputs["output_frequency"];
@@ -38,12 +47,10 @@ namespace CabanaDEM
       dt = inputs["timestep"];
       integrator = std::make_shared<integrator_type>( dt );
 
-      force = std::make_shared<force_type>();
-
       double mesh_min[3] = {
 	particles->mesh_lo[0],
 	particles->mesh_lo[1],
-	particles->mesh_lo[2]};
+	      particles->mesh_lo[2]};
       double mesh_max[3] = {
 	particles->mesh_hi[0],
 	particles->mesh_hi[1],
@@ -52,7 +59,7 @@ namespace CabanaDEM
       // This will be changed (No hard coded values)
       auto cell_ratio = 1.0;
       neighbors = std::make_shared<neighbor_type>( x, 0, x.size(),
-						   3. * 0.01, cell_ratio,
+						   delta, cell_ratio,
 						   mesh_min, mesh_max );
     }
 
@@ -77,10 +84,11 @@ namespace CabanaDEM
 
 
 	  // update the neighbours
-	  neighbors->build( x, 0, x.size(), 3. * 0.01,
+	  neighbors->build( x, 0, x.size(), delta,
 			    cell_ratio, mesh_min, mesh_max );
 	  // Compute the interaction force
-	  computeForce( *force, *particles, *neighbors, neigh_iter_tag{} );
+	  computeForceParticleParticleInfiniteWall( *force, *particles, *wall,
+						    *neighbors, neigh_iter_tag{}, dt );
 
 
 	  integrator->stage3( *particles );
@@ -106,20 +114,27 @@ namespace CabanaDEM
   protected:
     input_type inputs;
     std::shared_ptr<particle_type> particles;
+    std::shared_ptr<wall_type> wall;
     std::shared_ptr<integrator_type> integrator;
     std::shared_ptr<force_type> force;
     std::shared_ptr<neighbor_type> neighbors;
+    double delta;
   };
 
 
   //---------------------------------------------------------------------------//
   // Creation method.
-  template <class MemorySpace, class InputsType, class ParticleType>
+  template <class MemorySpace, class InputsType, class ParticleType, class WallType,
+	    class ForceModel>
   auto createSolverDEM(InputsType inputs,
-		       std::shared_ptr<ParticleType> particles)
+		       std::shared_ptr<ParticleType> particles,
+		       std::shared_ptr<WallType> wall,
+		       std::shared_ptr<ForceModel> force,
+		       double delta)
   {
     return std::make_shared<
-      SolverDEM<MemorySpace, InputsType, ParticleType>>(inputs, particles);
+      SolverDEM<MemorySpace, InputsType, ParticleType, WallType, ForceModel>>(inputs, particles,
+									      wall, force, delta);
   }
 
 }
