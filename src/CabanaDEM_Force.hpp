@@ -445,63 +445,63 @@ x( j, 2 )};
 	      // # tangential velocity
 	      double vij_magn = sqrt(vel_ij[0]*vel_ij[0] + vel_ij[1]*vel_ij[1] + vel_ij[2]*vel_ij[2]);
 
-	      // if (vij_magn < 1e-12){
-	      // 	tangential_disp_sw_x( i, j )	= 0.;
-	      // 	tangential_disp_sw_y( i, j )	= 0.;
-	      // 	tangential_disp_sw_z( i, j )	= 0.;
-	      // }
-	      // else{
-	      // 	// # print("inside")
-	      // 	// # project tangential spring on the current plane normal
-	      // 	tangential_disp_sw_x( i, j ) += vt_x * dt;
-	      // 	tangential_disp_sw_y( i, j ) += vt_y * dt;
-	      // 	tangential_disp_sw_z( i, j ) += vt_z * dt;
+	      if (vij_magn < 1e-12){
+		tangential_disp_sw_x( i, j )	= 0.;
+		tangential_disp_sw_y( i, j )	= 0.;
+		tangential_disp_sw_z( i, j )	= 0.;
+	      }
+	      else{
+		// # print("inside")
+		// # project tangential spring on the current plane normal
+		tangential_disp_sw_x( i, j ) += vt_x * dt;
+		tangential_disp_sw_y( i, j ) += vt_y * dt;
+		tangential_disp_sw_z( i, j ) += vt_z * dt;
 
-	      // 	// # Compute the tangential stiffness
-	      // 	tmp_1 = (2. - nu( i )) / G( i );
-	      // 	tmp_2 = (2. - nu_w( j )) / G_w( j );
-	      // 	double G_eff = 1. / (tmp_1 + tmp_2);
-	      // 	// # Eq 12 [1]
-	      // 	double kt = 8. * G_eff * sqrt(R_eff * overlap);
-	      // 	double S_t = kt;
-	      // 	double eta_t = -2 * sqrt(5/6) * beta * sqrt(S_t * m_eff);
+		// # Compute the tangential stiffness
+		tmp_1 = (2. - nu( i )) / G( i );
+		tmp_2 = (2. - nu_w( j )) / G_w( j );
+		double G_eff = 1. / (tmp_1 + tmp_2);
+		// # Eq 12 [1]
+		double kt = 8. * G_eff * sqrt(R_eff * overlap);
+		double S_t = kt;
+		double eta_t = -2 * sqrt(5/6) * beta * sqrt(S_t * m_eff);
 
-	      // 	double ft_x_star = -kt * tangential_disp_sw_x( i, j ) - eta_t * vt_x;
-	      // 	double ft_y_star = -kt * tangential_disp_sw_y( i, j ) - eta_t * vt_y;
-	      // 	double ft_z_star = -kt * tangential_disp_sw_z( i, j ) - eta_t * vt_z;
+		double ft_x_star = -kt * tangential_disp_sw_x( i, j ) - eta_t * vt_x;
+		double ft_y_star = -kt * tangential_disp_sw_y( i, j ) - eta_t * vt_y;
+		double ft_z_star = -kt * tangential_disp_sw_z( i, j ) - eta_t * vt_z;
 
-	      // 	double ft_magn = sqrt(ft_x_star*ft_x_star + ft_y_star*ft_y_star + ft_z_star*ft_y_star);
+		double ft_magn = sqrt(ft_x_star*ft_x_star + ft_y_star*ft_y_star + ft_z_star*ft_y_star);
 
-	      // 	double ti_x = 0.;
-	      // 	double ti_y = 0.;
-	      // 	double ti_z = 0.;
+		double ti_x = 0.;
+		double ti_y = 0.;
+		double ti_z = 0.;
 
-	      // 	if (ft_magn > 1e-12){
-	      // 	  ti_x = ft_x_star / ft_magn;
-	      // 	  ti_y = ft_y_star / ft_magn;
-	      // 	  ti_z = ft_z_star / ft_magn;
-	      // 	}
+		if (ft_magn > 1e-12){
+		  ti_x = ft_x_star / ft_magn;
+		  ti_y = ft_y_star / ft_magn;
+		  ti_z = ft_z_star / ft_magn;
+		}
 
-	      // 	double fn_magn = sqrt(fn_x*fn_x + fn_y*fn_y + fn_z*fn_z);
+		double fn_magn = sqrt(fn_x*fn_x + fn_y*fn_y + fn_z*fn_z);
 
-	      // 	double ft_magn_star = std::min(friction_pw * fn_magn, ft_magn);
+		double ft_magn_star = std::min(friction_pw * fn_magn, ft_magn);
 
-	      // 	// # compute the tangential force, by equation 17 (Lethe)
-	      // 	ft_x = ft_magn_star * ti_x;
-	      // 	ft_y = ft_magn_star * ti_y;
-	      // 	ft_z = ft_magn_star * ti_z;
+		// # compute the tangential force, by equation 17 (Lethe)
+		ft_x = ft_magn_star * ti_x;
+		ft_y = ft_magn_star * ti_y;
+		ft_z = ft_magn_star * ti_z;
 
-	      // 	// # Add damping to the limited force
-	      // 	ft_x += eta_t * vt_x;
-	      // 	ft_y += eta_t * vt_y;
-	      // 	ft_z += eta_t * vt_z;
+		// # Add damping to the limited force
+		ft_x += eta_t * vt_x;
+		ft_y += eta_t * vt_y;
+		ft_z += eta_t * vt_z;
 
-	      // 	// # reset the spring length
-	      // 	tangential_disp_sw_x( i, j )	= -ft_x / kt;
-	      // 	tangential_disp_sw_y( i, j )	= -ft_y / kt;
-	      // 	tangential_disp_sw_z( i, j )	= -ft_z / kt;
+		// # reset the spring length
+		tangential_disp_sw_x( i, j )	= -ft_x / kt;
+		tangential_disp_sw_y( i, j )	= -ft_y / kt;
+		tangential_disp_sw_z( i, j )	= -ft_z / kt;
 
-	      // }
+	      }
 	      // Add force to the particle i due to contact with particle j
 	      force( i, 0 ) += fn_x + ft_x;
 	      force( i, 1 ) += fn_y + ft_y;

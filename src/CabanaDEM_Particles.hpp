@@ -303,6 +303,7 @@ namespace CabanaDEM
 							      _no_of_particles,
 							      slicePosition(),
 							      sliceVelocity(),
+							      sliceOmega(),
 							      sliceAcceleration(),
 							      sliceForce(),
 							      sliceMass(),
