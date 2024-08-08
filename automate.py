@@ -170,6 +170,89 @@ class Test02ElasticNormalImpactParticleWall(Problem):
             plt.savefig(self.input_path(name, "force_fn_vs_time.pdf"))
 
 
+class Test03NormalParticleWallDifferentCOR(Problem):
+    """
+
+    """
+    def get_name(self):
+        return 'test03_normal_particle_wall_different_cor'
+
+    def setup(self):
+        get_path = self.input_path
+
+        cmd = './build/examples/03NormalParticleWallDifferentCOR ./examples/inputs/03_normal_particle_wall_different_cor.json $output_dir'
+        # Base case info
+        self.case_info = {
+            'cor_0_01': (dict(
+                cor_pw=0.01,
+                ), 'COR=0.01'),
+
+            'cor_0_2': (dict(
+                cor_pw=0.2,
+                ), 'COR=0.2'),
+
+            'cor_0_4': (dict(
+                cor_pw=0.4,
+                ), 'COR=0.4'),
+
+            'cor_0_6': (dict(
+                cor_pw=0.6,
+                ), 'COR=0.6'),
+
+            'cor_0_8': (dict(
+                cor_pw=0.8,
+                ), 'COR=0.8'),
+
+            'cor_1_0': (dict(
+                cor_pw=1.0,
+                ), 'COR=1.0'),
+        }
+
+        self.cases = [
+            Simulation(get_path(name), cmd,
+                       **scheme_opts(self.case_info[name][0]))
+            for name in self.case_info
+        ]
+
+    def run(self):
+        self.make_output_dir()
+        self.plot_cor_input_vs_output()
+
+    def plot_cor_input_vs_output(self):
+        cor_input_analytical = np.linspace(0., 1., 20)
+        cor_output_analytical = np.linspace(0., 1., 20)
+        input_velocity = 3.9
+
+        cor_input_simulation = []
+        cor_output_simulation = []
+        for name in self.case_info:
+            # check if the files exist then run this postprocess
+            files = get_files(self.input_path(name))
+
+            if len(files) > 0:
+                f = h5py.File(self.input_path(name, files[-1]), "r")
+                cor_input_i = self.case_info[name][0]["cor_pw"]
+                cor_output_i = f["velocities"][0][1] / input_velocity
+                # TODO: Before plotting save the extracted data in an npz file
+                plt.plot(cor_input_analytical, cor_output_analytical, label="Analytical")
+                plt.scatter([cor_input_i], [cor_output_i], label="Cabana DEM solver")
+                plt.legend()
+                plt.savefig(self.input_path(name, "cor_input_vs_output.pdf"))
+                plt.clf()
+
+                cor_input_simulation.append(cor_input_i)
+                cor_output_simulation.append(cor_output_i)
+
+        # Load specific extracted data from the output folders, which is saved
+        # in npz files, to plot the comparision between all the existing files
+        plt.clf()
+        plt.plot(cor_input_analytical, cor_output_analytical, label="Analytical")
+        plt.scatter(cor_input_simulation, cor_output_simulation, label="Cabana DEM solver")
+        plt.legend()
+        path_to_figure, _tail = os.path.split(name)
+        plt.savefig(self.input_path(path_to_figure, "cor_input_vs_output.pdf"))
+
+
 class Test04ElasticNormalImpactParticleWall(Problem):
     """
 
@@ -301,6 +384,7 @@ if __name__ == '__main__':
         # Image generator
         Test01ElasticNormalImpactOfTwoIdenticalParticles,
         Test02ElasticNormalImpactParticleWall,
+        Test03NormalParticleWallDifferentCOR,
         Test04ElasticNormalImpactParticleWall
         ]
 

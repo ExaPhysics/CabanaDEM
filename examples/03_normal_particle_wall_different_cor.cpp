@@ -13,7 +13,7 @@
 // Simulate two spherical particles colliding head on
 double NormalParticleWallDifferentCOR03( const std::string input_filename,
 					 const std::string output_folder_name,
-					 double cor_pw_manual_inp )
+					 const std::string cor_pw_input)
 {
   int comm_rank = -1;
   MPI_Comm_rank( MPI_COMM_WORLD, &comm_rank );
@@ -34,6 +34,10 @@ double NormalParticleWallDifferentCOR03( const std::string input_filename,
   //                   Read inputs
   // ====================================================
   CabanaDEM::Inputs inputs( input_filename );
+  // also decode some of the inputs
+  char delimiter = '=';
+  std::vector<std::string> result = CabanaDEM::splitString(cor_pw_input, delimiter);
+  double cor_pw_manual_inp = std::atof(result[1].c_str());
 
   // ====================================================
   //                Material parameters
@@ -43,35 +47,35 @@ double NormalParticleWallDifferentCOR03( const std::string input_filename,
   double radius_p_inp = inputs["particle_radius"];
   double  E_p_inp = inputs["particle_youngs_modulus"];
   double G_p_inp = inputs["particle_shear_modulus"];
-  double nu_p_inp = inputs["particle_poissons_ratio"];
-  // Wall material properties
-  double  E_w_inp = inputs["wall_youngs_modulus"];
-  double G_w_inp = inputs["wall_shear_modulus"];
-  double nu_w_inp = inputs["wall_poissons_ratio"];
-  // Coefficient of restitution among the interacting bodies
-  double cor_pp_inp = inputs["coefficient_of_restitution_pp"];
-  double cor_pw_inp = cor_pw_manual_inp;
-  // friction among the interacting bodies
-  double friction_pp_inp = inputs["friction_pp"];
-  double friction_pw_inp = inputs["friction_pw"];
+ double nu_p_inp = inputs["particle_poissons_ratio"];
+ // Wall material properties
+ double  E_w_inp = inputs["wall_youngs_modulus"];
+ double G_w_inp = inputs["wall_shear_modulus"];
+ double nu_w_inp = inputs["wall_poissons_ratio"];
+ // Coefficient of restitution among the interacting bodies
+ double cor_pp_inp = inputs["coefficient_of_restitution_pp"];
+ double cor_pw_inp = cor_pw_manual_inp;
+ // friction among the interacting bodies
+ double friction_pp_inp = inputs["friction_pp"];
+ double friction_pw_inp = inputs["friction_pw"];
 
-  // ====================================================
-  //                Geometric properties
-  // ====================================================
-  double velocity_p_inp = inputs["velocity_p"];
+ // ====================================================
+ //                Geometric properties
+ // ====================================================
+ double velocity_p_inp = inputs["velocity_p"];
 
-  // // ====================================================
-  // //                  Discretization
-  // // ====================================================
-  // // FIXME: set halo width based on delta
-  // std::array<double, 3> low_corner = inputs["low_corner"];
-  // std::array<double, 3> high_corner = inputs["high_corner"];
-  // std::array<int, 3> num_cells = inputs["num_cells"];
-  // int m = std::floor( delta /
-  //                     ( ( high_corner[0] - low_corner[0] ) / num_cells[0] ) );
-  // int halo_width = m + 1; // Just to be safe.
+ // // ====================================================
+ // //                  Discretization
+ // // ====================================================
+ // // FIXME: set halo width based on delta
+ // std::array<double, 3> low_corner = inputs["low_corner"];
+ // std::array<double, 3> high_corner = inputs["high_corner"];
+ // std::array<int, 3> num_cells = inputs["num_cells"];
+ // int m = std::floor( delta /
+ //                     ( ( high_corner[0] - low_corner[0] ) / num_cells[0] ) );
+ // int halo_width = m + 1; // Just to be safe.
 
-  // ====================================================
+ // ====================================================
   //  Force model
   // ====================================================
   auto force = std::make_shared<
@@ -190,39 +194,24 @@ int main( int argc, char* argv[] )
   MPI_Init( &argc, &argv );
   Kokkos::initialize( argc, argv );
   // check inputs and write usage
-  if ( argc < 2 )
+  if ( argc < 3 )
     {
       std::cerr << "Usage: ./01ElasticNormalImpactOfTwoIdenticalParticles  input_file_name output_folder \n";
 
-      std::cerr << "      input_file_name      path to input file name\n";
-      std::cerr << "      output_folder        folder to save the data, example 01NormalImpact\n";
+      std::cerr << "      input_file_name               path to input file name\n";
+      std::cerr << "      output_folder                 folder to save the data, example 01NormalImpact\n";
+      std::cerr << "      Restitution coefficient       incident angle, --angle=30.\n";
 
       Kokkos::finalize();
       MPI_Finalize();
       return 0;
     }
 
-  std::array<double, 6> cor_input;
-  std::array<double, 6> cor_output;
-  double step_cor = 1. / 5.;
-  double cor_curr = 0.;
-  for (int i=0; i < 6; i++){
-    cor_input[i] = cor_curr;
-    cor_curr += step_cor;
-  }
-
-
-  for (int i=1; i < 6; i++){
-    cor_output[i] = NormalParticleWallDifferentCOR03( argv[1], argv[2], cor_input[i]);
-  }
+  NormalParticleWallDifferentCOR03( argv[1], argv[2], argv[3] );
 
   Kokkos::finalize();
   MPI_Finalize();
 
-
-  for (int i=0; i < 6; i++){
-    std::cout << "input is " << cor_input[i] << " and output is " << cor_output[i];
-  }
 
   return 0;
 }

@@ -17,22 +17,6 @@
 
 #define DIM 3
 
-std::vector<std::string> splitString(const std::string& str, char delimiter) {
-  std::vector<std::string> result;
-  size_t start = 0;
-  size_t end = str.find(delimiter);
-
-  while (end != std::string::npos) {
-    result.push_back(str.substr(start, end - start));
-    start = end + 1;
-    end = str.find(delimiter, start);
-  }
-
-  result.push_back(str.substr(start));
-
-  return result;
-}
-
 
 // Simulate two spherical particles colliding head on
 double ObliqueParticleWallDifferentAngles04( const std::string input_filename,
@@ -60,10 +44,10 @@ double ObliqueParticleWallDifferentAngles04( const std::string input_filename,
   CabanaDEM::Inputs inputs( input_filename );
   // also decode some of the inputs
   char delimiter = '=';
-  std::vector<std::string> result = splitString(incident_angle_input, delimiter);
+  std::vector<std::string> result = CabanaDEM::splitString(incident_angle_input, delimiter);
 
   // double incident_angle = 20.;
-  double incident_angle = std::atoi(result[1].c_str());
+  double incident_angle = std::atof(result[1].c_str());
 
 
   // ====================================================
@@ -233,6 +217,7 @@ int main( int argc, char* argv[] )
 
       std::cerr << "      input_file_name      path to input file name\n";
       std::cerr << "      output_folder        folder to save the data, example 01NormalImpact\n";
+      std::cerr << "      Incident angle       incident angle, --angle=30.\n";
 
       Kokkos::finalize();
       MPI_Finalize();
