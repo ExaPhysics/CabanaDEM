@@ -6,6 +6,8 @@
 #include <fstream>
 #include <iostream>
 #include <math.h>
+#include <string>
+#include <vector>
 
 #include "mpi.h"
 
@@ -15,10 +17,27 @@
 
 #define DIM 3
 
+std::vector<std::string> splitString(const std::string& str, char delimiter) {
+  std::vector<std::string> result;
+  size_t start = 0;
+  size_t end = str.find(delimiter);
+
+  while (end != std::string::npos) {
+    result.push_back(str.substr(start, end - start));
+    start = end + 1;
+    end = str.find(delimiter, start);
+  }
+
+  result.push_back(str.substr(start));
+
+  return result;
+}
+
+
 // Simulate two spherical particles colliding head on
 double ObliqueParticleWallDifferentAngles04( const std::string input_filename,
 					     const std::string output_folder_name,
-					     double incident_angle )
+					     const std::string incident_angle_input)
 {
   int comm_rank = -1;
   MPI_Comm_rank( MPI_COMM_WORLD, &comm_rank );
@@ -39,6 +58,13 @@ double ObliqueParticleWallDifferentAngles04( const std::string input_filename,
   //                   Read inputs
   // ====================================================
   CabanaDEM::Inputs inputs( input_filename );
+  // also decode some of the inputs
+  char delimiter = '=';
+  std::vector<std::string> result = splitString(incident_angle_input, delimiter);
+
+  // double incident_angle = 20.;
+  double incident_angle = std::atoi(result[1].c_str());
+
 
   // ====================================================
   //                Material parameters
@@ -92,24 +118,24 @@ double ObliqueParticleWallDifferentAngles04( const std::string input_filename,
 
   // ====================================================
   //            Custom particle initialization
-  // ====================================================
-  auto x_p = particles->slicePosition();
-  auto u_p = particles->sliceVelocity();
-  auto omega_p = particles->sliceOmega();
-  auto m_p = particles->sliceMass();
-  auto rho_p = particles->sliceDensity();
-  auto rad_p = particles->sliceRadius();
-  auto I_p = particles->sliceMomentOfInertia();
-  auto E_p = particles->sliceYoungsMod();
-  auto nu_p = particles->slicePoissonsRatio();
-  auto G_p = particles->sliceShearMod();
+    // ====================================================
+    auto x_p = particles->slicePosition();
+    auto u_p = particles->sliceVelocity();
+    auto omega_p = particles->sliceOmega();
+    auto m_p = particles->sliceMass();
+    auto rho_p = particles->sliceDensity();
+    auto rad_p = particles->sliceRadius();
+    auto I_p = particles->sliceMomentOfInertia();
+    auto E_p = particles->sliceYoungsMod();
+    auto nu_p = particles->slicePoissonsRatio();
+    auto G_p = particles->sliceShearMod();
 
-  double angle = incident_angle / 180. * M_PI;
+    double angle = incident_angle / 180. * M_PI;
 
-  double ux_p_inp = velocity_p_inp * sin(angle);
-  double uy_p_inp = -velocity_p_inp * cos(angle);
+    double ux_p_inp = velocity_p_inp * sin(angle);
+    double uy_p_inp = -velocity_p_inp * cos(angle);
 
-  auto particles_init_functor = KOKKOS_LAMBDA( const int pid )
+    auto particles_init_functor = KOKKOS_LAMBDA( const int pid )
     {
       // Initial conditions: displacements and velocities
       double m_p_i = 4. / 3. * M_PI * radius_p_inp * radius_p_inp * radius_p_inp * rho_p_inp;
@@ -201,7 +227,7 @@ int main( int argc, char* argv[] )
   MPI_Init( &argc, &argv );
   Kokkos::initialize( argc, argv );
   // check inputs and write usage
-  if ( argc < 2 )
+  if ( argc < 3 )
     {
       std::cerr << "Usage: ./01ElasticNormalImpactOfTwoIdenticalParticles  input_file_name output_folder \n";
 
@@ -213,22 +239,9 @@ int main( int argc, char* argv[] )
       return 0;
     }
 
-  std::array<double, 2> angle_input={5., 20.};
-  std::array<double, 2> rebound_angular_velocity={0., 0.};
-
-
-  for (int i=0; i < 2; i++){
-    rebound_angular_velocity[i] = ObliqueParticleWallDifferentAngles04( argv[1], argv[2], angle_input[i]);
-    std::cout << "rebound angular velocity for input angle of " << angle_input[i] << " is " << rebound_angular_velocity[i] << std::endl;
-  }
+  ObliqueParticleWallDifferentAngles04( argv[1], argv[2], argv[3]);
 
   Kokkos::finalize();
   MPI_Finalize();
-
-
-  for (int i=0; i < 2; i++){
-    std::cout << "input is " << angle_input[i] << " and rebound angular velocity is " << rebound_angular_velocity[i] << std::endl;;
-  }
-
   return 0;
 }

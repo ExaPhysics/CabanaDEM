@@ -1,14 +1,16 @@
 #!/usr/bin/env python
 import os
 import matplotlib.pyplot as plt
+import h5py
 
 from itertools import cycle, product
 import json
-from automan.api import PySPHProblem as Problem
+from automan.api import Problem
 from automan.api import Automator, Simulation, filter_by_name
 from automan.jobs import free_cores
 # from pysph.solver.utils import load, get_files
 from automan.api import (Automator, Simulation, filter_cases, filter_by_name)
+from automan.automation import (CommandTask)
 
 import numpy as np
 import matplotlib
@@ -59,44 +61,23 @@ def scheme_opts(params):
         return params[0]
     return params
 
-
-def get_files_at_given_times(files, times):
-    from pysph.solver.utils import load
-    result = []
-    count = 0
+def get_files(directory):
+    # =====================================
+    # start: get the files and sort
+    # =====================================
+    files = [filename for filename in os.listdir(directory) if filename.startswith("particles") and filename.endswith("h5") ]
+    files.sort()
+    files_num = []
     for f in files:
-        data = load(f)
-        t = data['solver_data']['t']
-        if count >= len(times):
-            break
-        if abs(t - times[count]) < t * 1e-8:
-            result.append(f)
-            count += 1
-        elif t > times[count]:
-            result.append(f)
-            count += 1
-    return result
+        f_last = f[10:]
+        files_num.append(int(f_last[:-3]))
+    files_num.sort()
 
-
-def get_files_at_given_times_from_log(files, times, logfile):
-    import re
-    result = []
-    time_pattern = r"output at time\ (\d+(?:\.\d+)?)"
-    file_count, time_count = 0, 0
-    with open(logfile, 'r') as f:
-        for line in f:
-            if time_count >= len(times):
-                break
-            t = re.findall(time_pattern, line)
-            if t:
-                if float(t[0]) in times:
-                    result.append(files[file_count])
-                    time_count += 1
-                elif float(t[0]) > times[time_count]:
-                    result.append(files[file_count])
-                    time_count += 1
-                file_count += 1
-    return result
+    sorted_files = []
+    for num in files_num:
+        sorted_files.append("particles_" + str(num) + ".h5")
+    files = sorted_files
+    return files
 
 
 class Test01ElasticNormalImpactOfTwoIdenticalParticles(Problem):
@@ -124,32 +105,203 @@ class Test01ElasticNormalImpactOfTwoIdenticalParticles(Problem):
 
     def run(self):
         self.make_output_dir()
-    #     self.move_figures()
+        self.plot_time_vs_normal_force()
 
-    # def move_figures(self):
-    #     import shutil
-    #     import os
+    def plot_time_vs_normal_force(self):
+        data = {}
+        for name in self.case_info:
+            files = get_files(self.input_path(name))
 
-    #     for name in self.case_info:
-    #         source = self.input_path(name)
+            # print(directory_name+files[0])
+            frc = []
+            time = []
+            for f in files:
+                f = h5py.File(self.input_path(name, f), "r")
+                frc.append(f["forces"][1][0])
+                time.append(f.attrs["Time"])
 
-    #         target_dir = "manuscript/figures/" + source[8:] + "/"
-    #         os.makedirs(target_dir)
-    #         # print(target_dir)
+            plt.plot(time, frc, "^-", label="Cabana DEM solver")
+            plt.legend()
+            plt.savefig(self.input_path(name, "force_fn_vs_time.pdf"))
 
-    #         file_names = os.listdir(source)
 
-    #         for file_name in file_names:
-    #             # print(file_name)
-    #             if file_name.endswith((".jpg", ".pdf", ".png")):
-    #                 # print(target_dir)
-    #                 shutil.copy(os.path.join(source, file_name), target_dir)
+class Test02ElasticNormalImpactParticleWall(Problem):
+    """
+
+    """
+    def get_name(self):
+        return 'test02_elastic_normal_impact_of_particle_wall'
+
+    def setup(self):
+        get_path = self.input_path
+
+        cmd = './build/examples/02ElasticNormalImpactOfParticleWall ./examples/inputs/02_elastic_normal_impact_of_particle_wall.json $output_dir'
+        # Base case info
+        self.case_info = {
+            'case_1': (dict(
+                ), 'Cabana'),
+        }
+
+        self.cases = [
+            Simulation(get_path(name), cmd,
+                       **scheme_opts(self.case_info[name][0]))
+            for name in self.case_info
+        ]
+
+    def run(self):
+        self.make_output_dir()
+        self.plot_time_vs_normal_force()
+
+    def plot_time_vs_normal_force(self):
+        data = {}
+        for name in self.case_info:
+            files = get_files(self.input_path(name))
+
+            # print(directory_name+files[0])
+            frc = []
+            time = []
+            for f in files:
+                f = h5py.File(self.input_path(name, f), "r")
+                frc.append(f["forces"][0][1])
+                time.append(f.attrs["Time"])
+
+            plt.plot(time, frc, "^-", label="Cabana DEM solver")
+            plt.legend()
+            plt.savefig(self.input_path(name, "force_fn_vs_time.pdf"))
+
+
+class Test04ElasticNormalImpactParticleWall(Problem):
+    """
+
+    """
+    def get_name(self):
+        return 'test04_oblique_particle_wall_different_angles'
+
+    def setup(self):
+        get_path = self.input_path
+
+        cmd = './build/examples/04ObliqueParticleWallDifferentAngles ./examples/inputs/04_oblique_particle_wall_different_angles.json $output_dir'
+        # Base case info
+        self.case_info = {
+            'angle_2': (dict(
+                angle=2.,
+                ), 'Angle=2.'),
+
+            'angle_5': (dict(
+                angle=5.,
+                ), 'Angle=5.'),
+
+            'angle_10': (dict(
+                angle=10.,
+                ), 'Angle=10.'),
+
+            'angle_15': (dict(
+                angle=15.,
+                ), 'Angle=15.'),
+
+            'angle_20': (dict(
+                angle=20.,
+                ), 'Angle=20.'),
+
+            'angle_25': (dict(
+                angle=25.,
+                ), 'Angle=25.'),
+
+            'angle_30': (dict(
+                angle=30.,
+                ), 'Angle=30.'),
+
+            'angle_35': (dict(
+                angle=35.,
+                ), 'Angle=35.'),
+
+            'angle_40': (dict(
+                angle=40.,
+                ), 'Angle=40.'),
+
+            'angle_50': (dict(
+                angle=50.,
+                ), 'Angle=50.'),
+
+            'angle_55': (dict(
+                angle=55.,
+                ), 'Angle=55.'),
+
+            'angle_60': (dict(
+                angle=60.,
+                ), 'Angle=60.'),
+
+            'angle_65': (dict(
+                angle=65.,
+                ), 'Angle=65.'),
+
+            'angle_70': (dict(
+                angle=70.,
+                ), 'Angle=70.'),
+        }
+
+        self.cases = [
+            Simulation(get_path(name), cmd,
+                       **scheme_opts(self.case_info[name][0]))
+            for name in self.case_info
+        ]
+
+    def run(self):
+        self.make_output_dir()
+        self.plot_time_vs_normal_force()
+
+    def plot_time_vs_normal_force(self):
+        data_incident_angle_vs_omega_exp = np.loadtxt(os.path.join(
+            "examples/validation_data",
+            '04_oblique_particle_wall_different_angles_omega_vs_incident_angle_Kharaz_Gorham_Salman_experimental_data.csv'),
+                                                      delimiter=',')
+        incident_angle_exp, omega_exp = data_incident_angle_vs_omega_exp[:, 0], data_incident_angle_vs_omega_exp[:, 1]
+
+        data_incident_angle_vs_omega_Lethe_DEM = np.loadtxt(os.path.join(
+            "examples/validation_data",
+            '04_oblique_particle_wall_different_angles_omega_vs_incident_angle_Lethe_DEM_data.csv'),
+                                                      delimiter=',')
+        incident_angle_Lethe_DEM, omega_Lethe_DEM = data_incident_angle_vs_omega_Lethe_DEM[:, 0], data_incident_angle_vs_omega_Lethe_DEM[:, 1]
+
+        incident_angle_simulation = []
+        omega_simulation = []
+        for name in self.case_info:
+            # check if the files exist then run this postprocess
+            files = get_files(self.input_path(name))
+
+            if len(files) > 0:
+                f = h5py.File(self.input_path(name, files[-1]), "r")
+                angle_i = self.case_info[name][0]["angle"]
+                omega_i = f["omega"][0][2]
+                # TODO: Before plotting save the extracted data in an npz file
+                plt.plot(incident_angle_exp, omega_exp, "*-", label="Experiment")
+                plt.plot(incident_angle_Lethe_DEM, omega_Lethe_DEM, "v--", label="Lethe DEM solver")
+                plt.scatter([angle_i], [omega_i], label="Cabana DEM solver")
+                plt.legend()
+                plt.savefig(self.input_path(name, "incident_angle_vs_omega.pdf"))
+                plt.clf()
+
+                incident_angle_simulation.append(angle_i)
+                omega_simulation.append(omega_i)
+
+        # Load specific extracted data from the output folders, which is saved
+        # in npz files, to plot the comparision between all the existing files
+        plt.clf()
+        # print(incident_angle_exp, omega_exp)
+        plt.scatter(incident_angle_exp, omega_exp, label="Experiment")
+        plt.plot(incident_angle_Lethe_DEM, omega_Lethe_DEM, "v--", label="Lethe DEM solver")
+        plt.plot(incident_angle_simulation, omega_simulation, "^-", label="Cabana DEM solver")
+        plt.legend()
+        path_to_figure, tail = os.path.split(name)
+        plt.savefig(self.input_path(path_to_figure, "incident_angle_vs_omega.pdf"))
 
 
 if __name__ == '__main__':
     PROBLEMS = [
         # Image generator
-        Test01ElasticNormalImpactOfTwoIdenticalParticles
+        Test01ElasticNormalImpactOfTwoIdenticalParticles,
+        Test02ElasticNormalImpactParticleWall,
+        Test04ElasticNormalImpactParticleWall
         ]
 
     automator = Automator(
