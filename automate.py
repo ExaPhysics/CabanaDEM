@@ -19,7 +19,7 @@ from cycler import cycler
 from matplotlib import rc, patches, colors
 from matplotlib.collections import PatchCollection
 
-rc('font', **{'family': 'Helvetica', 'size': 12})
+rc('font', **{'family': 'sans-serif', 'size': 12})
 rc('legend', fontsize='medium')
 rc('axes', grid=True, linewidth=1.2)
 rc('axes.grid', which='both', axis='both')
@@ -106,26 +106,81 @@ class Test01ElasticNormalImpactOfTwoIdenticalParticles(Problem):
     def run(self):
         self.make_output_dir()
         self.plot_time_vs_normal_force()
+        self.move_figures()
 
     def plot_time_vs_normal_force(self):
-        data = {}
+        # data_incident_overlap_vs_fn_analy = np.loadtxt(os.path.join(
+        #     "examples/validation_data",
+        #     '01_elastic_normal_impact_of_two_identical_particles_overlap_vs_fn_analytical_data.csv'),
+        #                                               delimiter=',')
+        # overlap_analy, fn_analy = data_incident_overlap_vs_fn_analy[:, 0], data_incident_overlap_vs_fn_analy[:, 1]
+
+        data_incident_time_vs_fn_analy = np.loadtxt(os.path.join(
+            "examples/validation_data",
+            '01_elastic_normal_impact_of_two_identical_particles_time_vs_fn_analytical_data.csv'),
+                                                      delimiter=',')
+        time_analy, fn_analy = data_incident_time_vs_fn_analy[:, 0], data_incident_time_vs_fn_analy[:, 1]
+
         for name in self.case_info:
             files = get_files(self.input_path(name))
 
-            # print(directory_name+files[0])
-            frc = []
-            time = []
-            for f in files:
-                f = h5py.File(self.input_path(name, f), "r")
-                frc.append(f["forces"][1][0])
-                time.append(f.attrs["Time"])
+            # TODO add one more condition to skip this plot and go to direct comparision plots
+            if len(files) > 0:
+                # print(directory_name+files[0])
+                fn_simu = []
+                time_simu = []
+                for f in files:
+                    f = h5py.File(self.input_path(name, f), "r")
+                    fn_simu.append(f["forces"][1][0] / 1e3)
+                    time_simu.append(f.attrs["Time"] / 1e-6)
 
-            plt.plot(time, frc, "^-", label="Cabana DEM solver")
-            plt.legend()
-            plt.savefig(self.input_path(name, "force_fn_vs_time.pdf"))
+                # save the simulated data in a npz file in the case folder
+                res_npz = os.path.join(self.input_path(name, "results.npz"))
+                np.savez(res_npz,
+                         time_simu=time_simu,
+                         fn_simu=fn_simu)
+
+                plt.scatter(time_analy, fn_analy, label="Analytical")
+                plt.plot(time_simu, fn_simu, "^-", label="Cabana DEM solver")
+                plt.legend()
+                plt.savefig(self.input_path(name, "fn_vs_time.pdf"))
+
+        plt.clf()
+        plt.scatter(time_analy, fn_analy, label="Analytical")
+        for name in self.case_info:
+            # save the simulated data in a npz file in the case folder
+            res_npz = np.load(os.path.join(self.input_path(name, "results.npz")))
+            plt.plot(res_npz["time_simu"], res_npz["fn_simu"], "^-", label="Cabana DEM solver " + self.case_info[name][1])
+
+        plt.legend()
+        path_to_figure, tail = os.path.split(name)
+        plt.savefig(self.input_path(path_to_figure, "fn_vs_time.pdf"))
+
+    def move_figures(self):
+        import shutil
+        import os
+
+        for name in self.case_info:
+            # source =
+            source, tail = os.path.split(self.input_path(name))
+            # print("full source", source)
+            # print(source[8:], "source 8 is")
+            target_dir = "manuscript/figures/" + source[8:] + "/"
+            try:
+                os.makedirs(target_dir)
+            except FileExistsError:
+                pass
+
+            file_names = os.listdir(source)
+
+            for file_name in file_names:
+                # print(file_name)
+                if file_name.endswith((".jpg", ".pdf", ".png")):
+                    # print(target_dir)
+                    shutil.copy(os.path.join(source, file_name), target_dir)
 
 
-class Test02ElasticNormalImpactParticleWall(Problem):
+class Test02ElasticNormalImpactParticleWall(Test01ElasticNormalImpactOfTwoIdenticalParticles):
     """
 
     """
@@ -151,26 +206,52 @@ class Test02ElasticNormalImpactParticleWall(Problem):
     def run(self):
         self.make_output_dir()
         self.plot_time_vs_normal_force()
+        self.move_figures()
 
     def plot_time_vs_normal_force(self):
-        data = {}
+        data_incident_time_vs_fn_analy = np.loadtxt(os.path.join(
+            "examples/validation_data",
+            '01_elastic_normal_impact_of_two_identical_particles_time_vs_fn_analytical_data.csv'),
+                                                      delimiter=',')
+        time_analy, fn_analy = data_incident_time_vs_fn_analy[:, 0], data_incident_time_vs_fn_analy[:, 1]
+
         for name in self.case_info:
             files = get_files(self.input_path(name))
 
-            # print(directory_name+files[0])
-            frc = []
-            time = []
-            for f in files:
-                f = h5py.File(self.input_path(name, f), "r")
-                frc.append(f["forces"][0][1])
-                time.append(f.attrs["Time"])
+            # TODO add one more condition to skip this plot and go to direct comparision plots
+            if len(files) > 0:
+                # print(directory_name+files[0])
+                fn_simu = []
+                time_simu = []
+                for f in files:
+                    f = h5py.File(self.input_path(name, f), "r")
+                    fn_simu.append(f["forces"][0][1] / 1e3)
+                    time_simu.append(f.attrs["Time"] / 1e-6)
 
-            plt.plot(time, frc, "^-", label="Cabana DEM solver")
-            plt.legend()
-            plt.savefig(self.input_path(name, "force_fn_vs_time.pdf"))
+                # save the simulated data in a npz file in the case folder
+                res_npz = os.path.join(self.input_path(name, "results.npz"))
+                np.savez(res_npz,
+                         time_simu=time_simu,
+                         fn_simu=fn_simu)
+
+                plt.scatter(time_analy, fn_analy, label="Analytical")
+                plt.plot(time_simu, fn_simu, "^-", label="Cabana DEM solver")
+                plt.legend()
+                plt.savefig(self.input_path(name, "fn_vs_time.pdf"))
+
+        plt.clf()
+        plt.scatter(time_analy, fn_analy, label="Analytical")
+        for name in self.case_info:
+            # save the simulated data in a npz file in the case folder
+            res_npz = np.load(os.path.join(self.input_path(name, "results.npz")))
+            plt.plot(res_npz["time_simu"], res_npz["fn_simu"], "^-", label="Cabana DEM solver " + self.case_info[name][1])
+
+        plt.legend()
+        path_to_figure, tail = os.path.split(name)
+        plt.savefig(self.input_path(path_to_figure, "fn_vs_time.pdf"))
 
 
-class Test03NormalParticleWallDifferentCOR(Problem):
+class Test03NormalParticleWallDifferentCOR(Test01ElasticNormalImpactOfTwoIdenticalParticles):
     """
 
     """
@@ -217,14 +298,13 @@ class Test03NormalParticleWallDifferentCOR(Problem):
     def run(self):
         self.make_output_dir()
         self.plot_cor_input_vs_output()
+        self.move_figures()
 
     def plot_cor_input_vs_output(self):
         cor_input_analytical = np.linspace(0., 1., 20)
         cor_output_analytical = np.linspace(0., 1., 20)
         input_velocity = 3.9
 
-        cor_input_simulation = []
-        cor_output_simulation = []
         for name in self.case_info:
             # check if the files exist then run this postprocess
             files = get_files(self.input_path(name))
@@ -233,27 +313,37 @@ class Test03NormalParticleWallDifferentCOR(Problem):
                 f = h5py.File(self.input_path(name, files[-1]), "r")
                 cor_input_i = self.case_info[name][0]["cor_pw"]
                 cor_output_i = f["velocities"][0][1] / input_velocity
-                # TODO: Before plotting save the extracted data in an npz file
+                # save the simulated data in a npz file in the case folder
+                res_npz = os.path.join(self.input_path(name, "results.npz"))
+                np.savez(res_npz,
+                         cor_input_i=[cor_input_i],
+                         cor_output_i=[cor_output_i])
+
                 plt.plot(cor_input_analytical, cor_output_analytical, label="Analytical")
                 plt.scatter([cor_input_i], [cor_output_i], label="Cabana DEM solver")
                 plt.legend()
                 plt.savefig(self.input_path(name, "cor_input_vs_output.pdf"))
                 plt.clf()
 
-                cor_input_simulation.append(cor_input_i)
-                cor_output_simulation.append(cor_output_i)
-
         # Load specific extracted data from the output folders, which is saved
         # in npz files, to plot the comparision between all the existing files
         plt.clf()
         plt.plot(cor_input_analytical, cor_output_analytical, label="Analytical")
+        cor_input_simulation = []
+        cor_output_simulation = []
+        for name in self.case_info:
+            # save the simulated data in a npz file in the case folder
+            res_npz = np.load(os.path.join(self.input_path(name, "results.npz")))
+            cor_input_simulation.append(res_npz["cor_input_i"])
+            cor_output_simulation.append(res_npz["cor_output_i"])
+
         plt.scatter(cor_input_simulation, cor_output_simulation, label="Cabana DEM solver")
         plt.legend()
         path_to_figure, _tail = os.path.split(name)
         plt.savefig(self.input_path(path_to_figure, "cor_input_vs_output.pdf"))
 
 
-class Test04ElasticNormalImpactParticleWall(Problem):
+class Test04ElasticNormalImpactParticleWall(Test01ElasticNormalImpactOfTwoIdenticalParticles):
     """
 
     """
@@ -332,6 +422,7 @@ class Test04ElasticNormalImpactParticleWall(Problem):
     def run(self):
         self.make_output_dir()
         self.plot_time_vs_normal_force()
+        self.move_figures()
 
     def plot_time_vs_normal_force(self):
         data_incident_angle_vs_omega_exp = np.loadtxt(os.path.join(
@@ -346,8 +437,6 @@ class Test04ElasticNormalImpactParticleWall(Problem):
                                                       delimiter=',')
         incident_angle_Lethe_DEM, omega_Lethe_DEM = data_incident_angle_vs_omega_Lethe_DEM[:, 0], data_incident_angle_vs_omega_Lethe_DEM[:, 1]
 
-        incident_angle_simulation = []
-        omega_simulation = []
         for name in self.case_info:
             # check if the files exist then run this postprocess
             files = get_files(self.input_path(name))
@@ -356,7 +445,12 @@ class Test04ElasticNormalImpactParticleWall(Problem):
                 f = h5py.File(self.input_path(name, files[-1]), "r")
                 angle_i = self.case_info[name][0]["angle"]
                 omega_i = f["omega"][0][2]
-                # TODO: Before plotting save the extracted data in an npz file
+                # save the simulated data in a npz file in the case folder
+                res_npz = os.path.join(self.input_path(name, "results.npz"))
+                np.savez(res_npz,
+                         angle_i=[angle_i],
+                         omega_i=[omega_i])
+
                 plt.plot(incident_angle_exp, omega_exp, "*-", label="Experiment")
                 plt.plot(incident_angle_Lethe_DEM, omega_Lethe_DEM, "v--", label="Lethe DEM solver")
                 plt.scatter([angle_i], [omega_i], label="Cabana DEM solver")
@@ -364,15 +458,20 @@ class Test04ElasticNormalImpactParticleWall(Problem):
                 plt.savefig(self.input_path(name, "incident_angle_vs_omega.pdf"))
                 plt.clf()
 
-                incident_angle_simulation.append(angle_i)
-                omega_simulation.append(omega_i)
-
         # Load specific extracted data from the output folders, which is saved
         # in npz files, to plot the comparision between all the existing files
         plt.clf()
-        # print(incident_angle_exp, omega_exp)
         plt.scatter(incident_angle_exp, omega_exp, label="Experiment")
         plt.plot(incident_angle_Lethe_DEM, omega_Lethe_DEM, "v--", label="Lethe DEM solver")
+
+        incident_angle_simulation = []
+        omega_simulation = []
+        for name in self.case_info:
+            # save the simulated data in a npz file in the case folder
+            res_npz = np.load(os.path.join(self.input_path(name, "results.npz")))
+            incident_angle_simulation.append(res_npz["angle_i"])
+            omega_simulation.append(res_npz["omega_i"])
+
         plt.plot(incident_angle_simulation, omega_simulation, "^-", label="Cabana DEM solver")
         plt.legend()
         path_to_figure, tail = os.path.split(name)

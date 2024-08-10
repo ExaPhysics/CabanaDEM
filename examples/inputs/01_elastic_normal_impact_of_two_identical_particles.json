@@ -1,5 +1,5 @@
 {
-    "particle_density"                : {"value": 2000.0,  "unit": ""},
+    "particle_density"                : {"value": 2800.0,  "unit": ""},
     "particle_radius"                 : {"value": 0.01,  "unit": ""},
     "particle_youngs_modulus"         : {"value": 48e9, "unit": ""},
     "particle_shear_modulus"          : {"value": 2e10, "unit": ""},

@@ -1,9 +1,10 @@
 {
     "particle_density"                : {"value": 2699.0,  "unit": ""},
     "particle_radius"                 : {"value": 0.1,  "unit": ""},
-    "particle_youngs_modulus"         : {"value": 70e9, "unit": ""},
-    "particle_shear_modulus"          : {"value": 26923076923.07, "unit": ""},
-    "particle_poissons_ratio"         : {"value": 0.3, "unit": ""},
+    "particle_youngs_modulus"         : {"value": 380e9, "unit": ""},
+    "particle_shear_modulus"          : {"value": 154471544715.44714, "unit": ""},
+    "particle_poissons_ratio"         : {"value": 0.23, "unit": ""},
+
     "wall_youngs_modulus"             : {"value": 70e9, "unit": ""},
     "wall_shear_modulus"              : {"value": 26923076923.07, "unit": ""},
     "wall_poissons_ratio"             : {"value": 0.3, "unit": ""},
