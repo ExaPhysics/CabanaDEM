@@ -1,10 +1,8 @@
 /*
   How to run this examples:
-  ./examples/04ObliqueParticleWallDifferentAngles ../examples/inputs/04_oblique_particle_wall_different_angles.json ./ --angle=30.
+  ./examples/04ObliqueParticleWallDifferentAngles ../examples/inputs/04_oblique_particle_wall_different_angles.json ./
 
-
-
- */
+*/
 #include <fstream>
 #include <iostream>
 #include <math.h>
@@ -104,24 +102,25 @@ double ObliqueParticleWallDifferentAngles04( const std::string input_filename,
 
   // ====================================================
   //            Custom particle initialization
-    // ====================================================
-    auto x_p = particles->slicePosition();
-    auto u_p = particles->sliceVelocity();
-    auto omega_p = particles->sliceOmega();
-    auto m_p = particles->sliceMass();
-    auto rho_p = particles->sliceDensity();
-    auto rad_p = particles->sliceRadius();
-    auto I_p = particles->sliceMomentOfInertia();
-    auto E_p = particles->sliceYoungsMod();
-    auto nu_p = particles->slicePoissonsRatio();
-    auto G_p = particles->sliceShearMod();
+  // ====================================================
+  auto x_p = particles->slicePosition();
+  auto u_p = particles->sliceVelocity();
+  auto omega_p = particles->sliceOmega();
+  auto m_p = particles->sliceMass();
+  auto rho_p = particles->sliceDensity();
+  auto rad_p = particles->sliceRadius();
+  auto I_p = particles->sliceMomentOfInertia();
+  auto E_p = particles->sliceYoungsMod();
+  auto nu_p = particles->slicePoissonsRatio();
+  auto G_p = particles->sliceShearMod();
+  std::cout << &u_p << std::endl;
 
-    double angle = incident_angle / 180. * M_PI;
+  double angle = incident_angle / 180. * M_PI;
 
-    double ux_p_inp = velocity_p_inp * sin(angle);
-    double uy_p_inp = -velocity_p_inp * cos(angle);
+  double ux_p_inp = velocity_p_inp * sin(angle);
+  double uy_p_inp = -velocity_p_inp * cos(angle);
 
-    auto particles_init_functor = KOKKOS_LAMBDA( const int pid )
+  auto particles_init_functor = KOKKOS_LAMBDA( const int pid )
     {
       // Initial conditions: displacements and velocities
       double m_p_i = 4. / 3. * M_PI * radius_p_inp * radius_p_inp * radius_p_inp * rho_p_inp;
@@ -142,69 +141,55 @@ double ObliqueParticleWallDifferentAngles04( const std::string input_filename,
       nu_p( pid ) = nu_p_inp;
     };
   particles->updateParticles( exec_space{}, particles_init_functor );
+  particles->output( 0, 0. );
 
-  // ====================================================
-  //                 Wall generation
-  // ====================================================
-  // Does not set displacements, velocities, etc.
-  auto wall = std::make_shared<
-    CabanaDEM::Wall<memory_space, DIM>>(exec_space(), 1, output_folder_name);
+  particles->resize(20);
 
-  // ====================================================
-  //            Custom wall initialization
-  // ====================================================
-  auto x_w = wall->slicePosition();
-  auto u_w = wall->sliceVelocity();
-  auto normal_w = wall->sliceNormal();
-  auto E_w = wall->sliceYoungsMod();
-  auto nu_w = wall->slicePoissonsRatio();
-  auto G_w = wall->sliceShearMod();
+  auto x_p_20 = particles->slicePosition();
+  auto u_p_20 = particles->sliceVelocity();
+  // std::cout << "u_p 20 is " << &u_p_20 << std::endl;
 
-  auto init_functor = KOKKOS_LAMBDA( const int pid )
-			    {
-			      // Initial conditions: displacements and velocities
-			      x_w( pid, 0 ) = 0.;
-			      x_w( pid, 1 ) = 0.;
-			      x_w( pid, 2 ) = 0.;
-			      u_w( pid, 0 ) = 0.;
-			      u_w( pid, 1 ) = 0.;
-			      u_w( pid, 2 ) = 0.;
+  for (int i=0; i < u_p_20.size(); i++){
+    x_p_20( i, 0 ) = 0.;
+    x_p_20( i, 1 ) = 3 * i * radius_p_inp + radius_p_inp / 1000000.;
+    x_p_20( i, 2 ) = 0.;
 
-			      normal_w( pid, 0 ) = 0.;
-			      normal_w( pid, 1 ) = 1.;
-			      normal_w( pid, 2 ) = 0.;
+    u_p_20( i, 0 ) = 0.;
+    u_p_20( i, 1 ) = 1.;
+    u_p_20( i, 2 ) = 0.;
+  }
 
-			      E_w( pid ) = E_w_inp;
-			      G_w( pid ) = G_w_inp;
-      nu_w( pid ) = nu_w_inp;
-    };
-  wall->updateParticles( exec_space{}, init_functor );
+  // for (int i=0; i < u_p_20.size(); i++){
+  //   std::cout << x_p_20 (i, 1) << "\n";
+  // }
 
-  // ====================================================
-  //                 Set the neighbours mesh limits
-  // ====================================================
-  particles->mesh_lo[0] = -10. * radius_p_inp;
-  particles->mesh_lo[1] = -10. * radius_p_inp;
-  particles->mesh_lo[2] = -4. * radius_p_inp;
+  particles->output( 10, 0.1 );
 
-  particles->mesh_hi[0] = 10. * radius_p_inp;
-  particles->mesh_hi[1] = 10. * radius_p_inp;
-  particles->mesh_hi[2] = 4. * radius_p_inp;
+  for (int i=0; i < u_p_20.size(); i++){
+    x_p_20( i, 0 )+= 2. * u_p_20( i, 0 );
+    x_p_20( i, 1 )+= 2. * u_p_20( i, 1 );
+    x_p_20( i, 2 )+= 2. * u_p_20( i, 2 );
+  }
+
+  particles->output( 20, 0.2 );
 
 
-  // ====================================================
-  //                   Create solver
-  // ====================================================
-  auto cabana_dem = CabanaDEM::createSolverDEM<memory_space>( inputs, particles, wall,
-							      force, 3. * radius_p_inp);
+  particles->resize(15);
 
-  // ====================================================
-  //                   Simulation run
-  // ====================================================
-  // cabana_dem->init();
-  cabana_dem->run();
+  for (int i=0; i < u_p_20.size(); i++){
+    x_p_20( i, 0 ) = 0.;
+    x_p_20( i, 1 ) = 5 * i * radius_p_inp + radius_p_inp / 1000000.;
+    x_p_20( i, 2 ) = 0.;
 
-  return omega_p( 0, 2 );
+    u_p_20( i, 0 ) = 0.;
+    u_p_20( i, 1 ) = 1.;
+    u_p_20( i, 2 ) = 0.;
+  }
+
+  particles->output( 30, 0.3 );
+
+  return 0;
+
 }
 
 // Initialize MPI+Kokkos.

@@ -264,6 +264,7 @@ namespace CabanaDEM
 
     void resize(const std::size_t n)
     {
+      _no_of_particles = n;
       _x.resize( n );
       _u.resize( n );
       _au.resize( n );

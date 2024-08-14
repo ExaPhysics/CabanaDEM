@@ -2,9 +2,7 @@
   How to run this examples:
   ./examples/04ObliqueParticleWallDifferentAngles ../examples/inputs/04_oblique_particle_wall_different_angles.json ./ --angle=30.
 
-
-
- */
+*/
 #include <fstream>
 #include <iostream>
 #include <math.h>
@@ -100,28 +98,28 @@ double ObliqueParticleWallDifferentAngles04( const std::string input_filename,
   // ====================================================
   // Does not set displacements, velocities, etc.
   auto particles = std::make_shared<
-    CabanaDEM::Particles<memory_space, DIM, 6, 1>>(exec_space(), 1, output_folder_name);
+    CabanaDEM::Particles<memory_space, DIM, 6, 3>>(exec_space(), 1, output_folder_name);
 
   // ====================================================
   //            Custom particle initialization
-    // ====================================================
-    auto x_p = particles->slicePosition();
-    auto u_p = particles->sliceVelocity();
-    auto omega_p = particles->sliceOmega();
-    auto m_p = particles->sliceMass();
-    auto rho_p = particles->sliceDensity();
-    auto rad_p = particles->sliceRadius();
-    auto I_p = particles->sliceMomentOfInertia();
-    auto E_p = particles->sliceYoungsMod();
-    auto nu_p = particles->slicePoissonsRatio();
-    auto G_p = particles->sliceShearMod();
+  // ====================================================
+  auto x_p = particles->slicePosition();
+  auto u_p = particles->sliceVelocity();
+  auto omega_p = particles->sliceOmega();
+  auto m_p = particles->sliceMass();
+  auto rho_p = particles->sliceDensity();
+  auto rad_p = particles->sliceRadius();
+  auto I_p = particles->sliceMomentOfInertia();
+  auto E_p = particles->sliceYoungsMod();
+  auto nu_p = particles->slicePoissonsRatio();
+  auto G_p = particles->sliceShearMod();
 
-    double angle = incident_angle / 180. * M_PI;
+  double angle = incident_angle / 180. * M_PI;
 
-    double ux_p_inp = velocity_p_inp * sin(angle);
-    double uy_p_inp = -velocity_p_inp * cos(angle);
+  double ux_p_inp = velocity_p_inp * sin(angle);
+  double uy_p_inp = -velocity_p_inp * cos(angle);
 
-    auto particles_init_functor = KOKKOS_LAMBDA( const int pid )
+  auto particles_init_functor = KOKKOS_LAMBDA( const int pid )
     {
       // Initial conditions: displacements and velocities
       double m_p_i = 4. / 3. * M_PI * radius_p_inp * radius_p_inp * radius_p_inp * rho_p_inp;
@@ -148,7 +146,7 @@ double ObliqueParticleWallDifferentAngles04( const std::string input_filename,
   // ====================================================
   // Does not set displacements, velocities, etc.
   auto wall = std::make_shared<
-    CabanaDEM::Wall<memory_space, DIM>>(exec_space(), 1, output_folder_name);
+    CabanaDEM::Wall<memory_space, DIM>>(exec_space(), 3, output_folder_name);
 
   // ====================================================
   //            Custom wall initialization
@@ -161,24 +159,33 @@ double ObliqueParticleWallDifferentAngles04( const std::string input_filename,
   auto G_w = wall->sliceShearMod();
 
   auto init_functor = KOKKOS_LAMBDA( const int pid )
-			    {
-			      // Initial conditions: displacements and velocities
-			      x_w( pid, 0 ) = 0.;
-			      x_w( pid, 1 ) = 0.;
-			      x_w( pid, 2 ) = 0.;
-			      u_w( pid, 0 ) = 0.;
-			      u_w( pid, 1 ) = 0.;
-			      u_w( pid, 2 ) = 0.;
+    {
+      // Initial conditions: displacements and velocities
+      x_w( pid, 0 ) = 0.;
+      x_w( pid, 1 ) = 0.;
+      x_w( pid, 2 ) = 0.;
+      u_w( pid, 0 ) = 0.;
+      u_w( pid, 1 ) = 0.;
+      u_w( pid, 2 ) = 0.;
 
-			      normal_w( pid, 0 ) = 0.;
-			      normal_w( pid, 1 ) = 1.;
-			      normal_w( pid, 2 ) = 0.;
+      normal_w( pid, 0 ) = 0.;
+      normal_w( pid, 1 ) = 1.;
+      normal_w( pid, 2 ) = 0.;
 
-			      E_w( pid ) = E_w_inp;
-			      G_w( pid ) = G_w_inp;
+      E_w( pid ) = E_w_inp;
+      G_w( pid ) = G_w_inp;
       nu_w( pid ) = nu_w_inp;
     };
   wall->updateParticles( exec_space{}, init_functor );
+  for (int i=0; i < u_p_20.size(); i++){
+    x_p_20( i, 0 ) = 0.;
+    x_p_20( i, 1 ) = 3 * i * radius_p_inp + radius_p_inp / 1000000.;
+    x_p_20( i, 2 ) = 0.;
+
+    u_p_20( i, 0 ) = 0.;
+    u_p_20( i, 1 ) = 1.;
+    u_p_20( i, 2 ) = 0.;
+  }
 
   // ====================================================
   //                 Set the neighbours mesh limits
