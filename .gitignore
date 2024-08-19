@@ -44,4 +44,4 @@ dist/
 .tox/
 *.out
 *_output
-*.png
+manuscript/figures/*.png
