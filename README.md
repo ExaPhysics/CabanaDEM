@@ -114,7 +114,7 @@ The first example is two particles impacting head on [1]. Assuming the build pat
 ```
 ![alt text](https://github.com/ExaPhysics/CabanaDEM/blob/master/doc/images/dem_01_head_on_schematic.png?raw=true)
 
-![alt text](https://github.com/ExaPhysics/CabanaDEM/blob/master/doc/images/fn_overlap.pdf?raw=true)
+![alt text](https://github.com/ExaPhysics/CabanaDEM/blob/master/doc/images/fn_overlap.png?raw=true)
 
 The second example is spherical particle impacting a wall normally [1]. Assuming the build paths above, the example can be run with:
 
@@ -133,6 +133,10 @@ Fourth example is to test the tangential part of the contact force model [1]. As
 ```
 ./build/examples/04ObliqueParticleWallDifferentAngles ./examples/inputs/04_oblique_particle_wall_different_angles.json ./
 ```
+
+![alt text](https://github.com/ExaPhysics/CabanaDEM/blob/master/doc/images/schematic.png?raw=true)
+
+![alt text](https://github.com/ExaPhysics/CabanaDEM/blob/master/doc/images/angle_vs_ang_vel.png?raw=true)
 
 ## References
 
