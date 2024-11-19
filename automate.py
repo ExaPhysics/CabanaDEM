@@ -478,13 +478,102 @@ class Test04ElasticNormalImpactParticleWall(Test01ElasticNormalImpactOfTwoIdenti
         plt.savefig(self.input_path(path_to_figure, "incident_angle_vs_omega.pdf"))
 
 
+class Tst03MultipleParticlesContacts(Problem):
+    """
+    To test the tangential contact, and tracking the indices during a DEM simulation.
+    A single particle hits two particles, in the process we check if the implemented
+    DEM algorithm is behaving as expected.
+    """
+    def get_name(self):
+        return 'tst03_multiple_particles_contact'
+
+    def setup(self):
+        get_path = self.input_path
+
+        cmd = './build/examples/Tst03MultipleParticlesContacts ./examples/inputs/tst_03_multiple_particles_contacts.json $output_dir'
+        # Base case info
+        self.case_info = {
+            'case_1': (dict(
+                ), 'Cabana'),
+        }
+
+        self.cases = [
+            Simulation(get_path(name), cmd,
+                       **scheme_opts(self.case_info[name][0]))
+            for name in self.case_info
+        ]
+
+    def run(self):
+        self.make_output_dir()
+        self.plot_time_vs_normal_force()
+        self.move_figures()
+
+    def plot_time_vs_normal_force(self):
+        for name in self.case_info:
+            files = get_files(self.input_path(name))
+
+            if len(files) > 0:
+                # get total no of particles
+                f = h5py.File(self.input_path(name, files[0]), "r")
+                no_of_particles = len(f["forces"])
+
+                # create an array to track the total no of contacts with time
+                # for all the particles
+                total_contacts_simu_list = []
+                for i in range(no_of_particles):
+                    total_contacts_simu_list.append([])
+                total_contacts_simu = total_contacts_simu_list
+
+                time_simu = []
+                for f in files:
+                    f = h5py.File(self.input_path(name, f), "r")
+
+                    total_no_tangential_contacts = f["total_no_tangential_contacts"]
+                    for i in range(no_of_particles):
+                        total_contacts_simu[i].append(total_no_tangential_contacts[i])
+                    time_simu.append(f.attrs["Time"] / 1e-6)
+
+                for i in range(no_of_particles):
+                    plt.plot(time_simu, total_contacts_simu[i], label="{}".format(i))
+                plt.legend()
+
+            path_to_figure, tail = os.path.split(name)
+            plt.savefig(self.input_path(path_to_figure,  "total_no_tangential_contacts_vs_time.pdf"))
+
+    def move_figures(self):
+        import shutil
+        import os
+
+        for name in self.case_info:
+            # source =
+            source, tail = os.path.split(self.input_path(name))
+            # print("full source", source)
+            # print(source[8:], "source 8 is")
+            target_dir = "manuscript/figures/" + source[8:] + "/"
+            try:
+                os.makedirs(target_dir)
+            except FileExistsError:
+                pass
+
+            file_names = os.listdir(source)
+
+            for file_name in file_names:
+                # print(file_name)
+                if file_name.endswith((".jpg", ".pdf", ".png")):
+                    # print(target_dir)
+                    shutil.copy(os.path.join(source, file_name), target_dir)
+
+
 if __name__ == '__main__':
     PROBLEMS = [
         # Image generator
         Test01ElasticNormalImpactOfTwoIdenticalParticles,
         Test02ElasticNormalImpactParticleWall,
         Test03NormalParticleWallDifferentCOR,
-        Test04ElasticNormalImpactParticleWall
+        Test04ElasticNormalImpactParticleWall,
+
+        # Some tests to test the DEM algorithm
+        Tst03MultipleParticlesContacts
         ]
 
     automator = Automator(

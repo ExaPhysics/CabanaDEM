@@ -80,7 +80,7 @@ void SphereSphereCollision01( const std::string input_filename, const std::strin
   // ====================================================
   // Does not set displacements, velocities, etc.
   auto particles = std::make_shared<
-    CabanaDEM::Particles<memory_space, DIM, 6, 1>>(exec_space(), 2, output_folder_name);
+    CabanaDEM::Particles<memory_space, DIM, 6, 1>>(exec_space(), 3, output_folder_name);
 
   // ====================================================
   //            Custom particle initialization
@@ -108,9 +108,20 @@ void SphereSphereCollision01( const std::string input_filename, const std::strin
 
       x_p( pid, 0 ) = -radius_p_inp + pid * (2. * radius_p_inp) + pid * radius_p_inp / 100.;
       x_p( pid, 1 ) = 0.;
+      if (pid == 1){
+        x_p( pid, 0 ) = -radius_p_inp + 1 * (1.5 * radius_p_inp) + 1 * radius_p_inp / 100.;
+        x_p( pid, 1 ) = radius_p_inp + radius_p_inp / 2.;
+      }
+      if (pid == 2){
+        x_p( pid, 0 ) = -radius_p_inp + 1 * (1.5 * radius_p_inp) + 1 * radius_p_inp / 100.;
+        x_p( pid, 1 ) = - radius_p_inp - radius_p_inp / 2.;
+      }
       x_p( pid, 2 ) = 0.;
-      u_p( pid, 0 ) = velocity_p_inp;
-      if (pid == 1) u_p( pid, 0 ) = -velocity_p_inp;
+
+      u_p( pid, 0 ) = 0.;
+      if (pid == 0){
+        u_p( pid, 0 ) = velocity_p_inp;
+      }
       u_p( pid, 1 ) = 0.0;
       u_p( pid, 2 ) = 0.0;
 
@@ -160,7 +171,7 @@ void SphereSphereCollision01( const std::string input_filename, const std::strin
       u_w( pid, 2 ) = 0.;
 
       normal_w( pid, 0 ) = 0.;
-      normal_w( pid, 1 ) = 1.;
+      normal_w( pid, 1 ) = 0.;
       normal_w( pid, 2 ) = 0.;
 
       E_w( pid ) = E_w_inp;

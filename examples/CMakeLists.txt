@@ -13,6 +13,8 @@ target_link_libraries(04ObliqueParticleWallDifferentAngles PRIVATE cabanadem)
 add_executable(Tst01ParticleInsertion tst_01_particle_insertion.cpp)
 target_link_libraries(Tst01ParticleInsertion PRIVATE cabanadem)
 
+add_executable(Tst03MultipleParticlesContacts tst_03_multiple_particles_contacts.cpp)
+target_link_libraries(Tst03MultipleParticlesContacts PRIVATE cabanadem)
 
 
 install(TARGETS 01ElasticNormalImpactOfTwoIdenticalParticles
@@ -20,6 +22,7 @@ install(TARGETS 01ElasticNormalImpactOfTwoIdenticalParticles
   03NormalParticleWallDifferentCOR
   04ObliqueParticleWallDifferentAngles
   Tst01ParticleInsertion
+  Tst03MultipleParticlesContacts
   DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 

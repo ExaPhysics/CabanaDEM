@@ -57,17 +57,17 @@ namespace CabanaDEM
       // create the output folder if it doesn't exist
 
       if (!fs::is_directory(_output_folder_name) || !fs::exists(_output_folder_name)) { // Check if src folder exists
-	fs::create_directory(_output_folder_name); // create src folder
+        fs::create_directory(_output_folder_name); // create src folder
       }
 
       resize( _no_of_particles );
       createParticles( exec_space );
       // Set dummy values here, reset them in particular examples
       for ( int d = 0; d < dim; d++ )
-	{
-	  mesh_lo[d] = 0.0;
-	  mesh_hi[d] = 0.0;
-	}
+        {
+          mesh_lo[d] = 0.0;
+          mesh_hi[d] = 0.0;
+        }
     }
 
     // Constructor which initializes particles on regular grid.
@@ -77,14 +77,14 @@ namespace CabanaDEM
       auto x = slicePosition();
 
       auto create_particles_func = KOKKOS_LAMBDA( const int i )
-	{
-	  for (int j=0; j < DIM; j++){
-	    // x( i, j ) = DIM * i + j;
-	  }
-	};
+        {
+          for (int j=0; j < DIM; j++){
+            // x( i, j ) = DIM * i + j;
+          }
+        };
       Kokkos::RangePolicy<ExecSpace> policy( 0, x.size() );
       Kokkos::parallel_for( "create_particles_lambda", policy,
-			    create_particles_func );
+                            create_particles_func );
     }
 
     template <class ExecSpace, class FunctorType>
@@ -92,8 +92,8 @@ namespace CabanaDEM
     {
       Kokkos::RangePolicy<ExecSpace> policy( 0, _no_of_particles );
       Kokkos::parallel_for(
-			   "CabanaPD::Particles::update_particles", policy,
-			   KOKKOS_LAMBDA( const int pid ) { init_functor( pid ); } );
+                           "CabanaPD::Particles::update_particles", policy,
+                           KOKKOS_LAMBDA( const int pid ) { init_functor( pid ); } );
     }
 
     auto slicePosition()
@@ -211,7 +211,7 @@ namespace CabanaDEM
     }
     auto sliceTangentialDispSWx() const
     {
-	return Cabana::slice<0>( _tangential_disp_sw_x, "tangential_disp_sw_x" );
+        return Cabana::slice<0>( _tangential_disp_sw_x, "tangential_disp_sw_x" );
     }
 
     auto sliceTangentialDispSWy() {
@@ -219,7 +219,7 @@ namespace CabanaDEM
     }
     auto sliceTangentialDispSWy() const
     {
-	return Cabana::slice<0>( _tangential_disp_sw_y, "tangential_disp_sw_y" );
+        return Cabana::slice<0>( _tangential_disp_sw_y, "tangential_disp_sw_y" );
     }
 
     auto sliceTangentialDispSWz() {
@@ -227,7 +227,7 @@ namespace CabanaDEM
     }
     auto sliceTangentialDispSWz() const
     {
-	return Cabana::slice<0>( _tangential_disp_sw_z, "tangential_disp_sw_z" );
+        return Cabana::slice<0>( _tangential_disp_sw_z, "tangential_disp_sw_z" );
     }
 
     auto sliceTangentialDispSSx() {
@@ -235,7 +235,7 @@ namespace CabanaDEM
     }
     auto sliceTangentialDispSSx() const
     {
-	return Cabana::slice<0>( _tangential_disp_ss_x, "tangential_disp_ss_x" );
+        return Cabana::slice<0>( _tangential_disp_ss_x, "tangential_disp_ss_x" );
     }
 
     auto sliceTangentialDispSSy() {
@@ -243,7 +243,7 @@ namespace CabanaDEM
     }
     auto sliceTangentialDispSSy() const
     {
-	return Cabana::slice<0>( _tangential_disp_ss_y, "tangential_disp_ss_y" );
+        return Cabana::slice<0>( _tangential_disp_ss_y, "tangential_disp_ss_y" );
     }
 
     auto sliceTangentialDispSSz() {
@@ -251,7 +251,7 @@ namespace CabanaDEM
     }
     auto sliceTangentialDispSSz() const
     {
-	return Cabana::slice<0>( _tangential_disp_ss_z, "tangential_disp_ss_z" );
+        return Cabana::slice<0>( _tangential_disp_ss_z, "tangential_disp_ss_z" );
     }
 
     auto sliceTangentialDispIdx() {
@@ -259,7 +259,15 @@ namespace CabanaDEM
     }
     auto sliceTangentialDispIdx() const
     {
-	return Cabana::slice<0>( _tangential_disp_idx, "tangential_disp_idx" );
+        return Cabana::slice<0>( _tangential_disp_idx, "tangential_disp_idx" );
+    }
+
+    auto sliceTotalNoTangentialContacts() {
+      return Cabana::slice<0>( _total_no_tangential_contacts, "total_no_tangential_contacts" );
+    }
+    auto sliceTotalNoTangentialContacts() const
+    {
+      return Cabana::slice<0>( _total_no_tangential_contacts, "total_no_tangential_contacts" );
     }
 
     void resize(const std::size_t n)
@@ -285,43 +293,49 @@ namespace CabanaDEM
       _tangential_disp_ss_y.resize( n );
       _tangential_disp_ss_z.resize( n );
       _tangential_disp_idx.resize( n );
+      _total_no_tangential_contacts.resize( n );
     }
 
     void output(  const int output_step,
-		  const double output_time,
-		  const bool use_reference = true )
+                  const double output_time,
+                  const bool use_reference = true )
     {
       // _output_timer.start();
 
 #ifdef Cabana_ENABLE_HDF5
       Cabana::Experimental::HDF5ParticleOutput::writeTimeStep(
-							      h5_config,
-							      _output_folder_name+"/particles",
-							      // "particles",
-							      MPI_COMM_WORLD,
-							      output_step,
-							      output_time,
-							      _no_of_particles,
-							      slicePosition(),
-							      sliceVelocity(),
-							      sliceOmega(),
-							      sliceAcceleration(),
-							      sliceForce(),
-							      sliceMass(),
-							      sliceDensity(),
-							      sliceRadius());
+                                                              h5_config,
+                                                              _output_folder_name+"/particles",
+                                                              // "particles",
+                                                              MPI_COMM_WORLD,
+                                                              output_step,
+                                                              output_time,
+                                                              _no_of_particles,
+                                                              slicePosition(),
+                                                              sliceVelocity(),
+                                                              sliceOmega(),
+                                                              sliceAcceleration(),
+                                                              sliceForce(),
+                                                              sliceMass(),
+                                                              sliceDensity(),
+                                                              sliceRadius(),
+                                                              sliceTangentialDispSSx(),
+                                                              sliceTangentialDispSSy(),
+                                                              sliceTangentialDispSSz(),
+                                                              sliceTangentialDispIdx(),
+                                                              sliceTotalNoTangentialContacts());
       // #else
       // #ifdef Cabana_ENABLE_SILO
       //       Cabana::Grid::Experimental::SiloParticleOutput::
-      // 	writePartialRangeTimeStep(
-      // 				  "particles", output_step, output_time,
-      // 				  _no_of_particles,
-      // 				  slicePosition(),
-      // 				  sliceVelocity(),
-      // 				  sliceAcceleration(),
-      // 				  sliceMass(),
-      // 				  sliceDensity(),
-      // 				  sliceRadius());
+      //        writePartialRangeTimeStep(
+      //                                  "particles", output_step, output_time,
+      //                                  _no_of_particles,
+      //                                  slicePosition(),
+      //                                  sliceVelocity(),
+      //                                  sliceAcceleration(),
+      //                                  sliceMass(),
+      //                                  sliceDensity(),
+      //                                  sliceRadius());
 #else
       std::cout << "No particle output enabled.";
       // log( std::cout, "No particle output enabled." );
@@ -353,6 +367,7 @@ namespace CabanaDEM
     aosoa_track_cnt_double_type _tangential_disp_ss_y;
     aosoa_track_cnt_double_type _tangential_disp_ss_z;
     aosoa_track_cnt_int_type _tangential_disp_idx;
+    aosoa_int_type _total_no_tangential_contacts;
     std::string _output_folder_name;
 
 #ifdef Cabana_ENABLE_HDF5
