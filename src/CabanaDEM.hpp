@@ -8,4 +8,9 @@
 #include <CabanaDEM_Solver.hpp>
 #include <CabanaDEM_Integrator.hpp>
 
+#include <CabanaBondedDEM_Particles.hpp>
+#include <CabanaBondedDEM_Force.hpp>
+#include <CabanaBondedDEM_Solver.hpp>
+#include <CabanaBondedDEM_Integrator.hpp>
+
 #endif

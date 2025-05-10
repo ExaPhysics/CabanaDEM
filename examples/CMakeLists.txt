@@ -20,6 +20,10 @@ add_executable(Tst04GranularDamBreak2d tst_04_granular_dam_break_2d.cpp)
 target_link_libraries(Tst04GranularDamBreak2d PRIVATE cabanadem)
 
 
+add_executable(Tst01BDEMTwoParticlesTensile3D tst_01_BDEM_two_particles_tensile_3D.cpp)
+target_link_libraries(Tst01BDEMTwoParticlesTensile3D PRIVATE cabanadem)
+
+
 install(TARGETS 01ElasticNormalImpactOfTwoIdenticalParticles
   02ElasticNormalImpactOfParticleWall
   03NormalParticleWallDifferentCOR
@@ -27,6 +31,8 @@ install(TARGETS 01ElasticNormalImpactOfTwoIdenticalParticles
   Tst01ParticleInsertion
   Tst03MultipleParticlesContacts
   Tst04GranularDamBreak2d
+
+  Tst01BDEMTwoParticlesTensile3D
   DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 
