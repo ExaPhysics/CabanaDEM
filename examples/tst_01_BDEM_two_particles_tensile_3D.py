@@ -29,15 +29,15 @@ shutil.copy('./build/examples/Tst01BDEMTwoParticlesTensile3D', output_dir)
 cli_args = ' '.join(element.split("=")[1] for element in sys.argv[2:])
 os.system('cd ' + output_dir + '&& ./Tst01BDEMTwoParticlesTensile3D ' + cli_args)
 
-# # =====================================================
-# # 3. post process the output file and plot
-# # =====================================================
-# cabana = h5py.File(output_dir + "/particles_0.h5", "r")
+# =====================================================
+# 3. post process the output file and plot
+# =====================================================
+cabana = h5py.File(output_dir + "/particles_0.h5", "r")
 
-# cabana_x = cabana['positions'][:, 0]
-# cabana_y = cabana['positions'][:, 1]
-# # cabana_sin_appr = cabana['pressure'][:]
-# # cabana_sin_analytical = cabana['wij'][:]
+total_no_bonds = cabana['total_no_bonds'][:]
+print(total_no_bonds)
+# cabana_sin_appr = cabana['pressure'][:]
+# cabana_sin_analytical = cabana['wij'][:]
 
 # # res_npz = os.path.join(output_dir, "results.npz")
 # # np.savez(res_npz,
@@ -66,27 +66,34 @@ os.system('cd ' + output_dir + '&& ./Tst01BDEMTwoParticlesTensile3D ' + cli_args
 # # plt.axes().set_aspect('equal', 'box')
 # plt.show()
 
-# from utils import get_files
+# from utils import get_files, get_files_rigid_bodies
 # files = get_files(output_dir)
 # print(files)
 
 # # TODO add one more condition to skip this plot and go to direct comparision plots
 # if len(files) > 0:
 #     # print(directory_name+files[0])
-#     fn_simu = []
+#     x_0_simu = []
+#     x_1_simu = []
 #     time_simu = []
-#     for f in files:
-#         f = h5py.File(input_path(name, f), "r")
-#         fn_simu.append(f["forces"][1][0] / 1e3)
-#         time_simu.append(f.attrs["Time"] / 1e-6)
+#     for f_name in files:
+#         f_path = os.path.join(output_dir, f_name)
+#         f = h5py.File(f_path, "r")
+#         # print(f["rot_mat_cm"][:])
+#         x_0_simu.append(f["x"][0][0])
+#         x_1_simu.append(f["x"][1][0])
+#         time_simu.append(f.attrs["Time"])
+# else:
+#     sys.exit("Files are empty")
 
-#     # save the simulated data in a npz file in the case folder
-#     res_npz = os.path.join(self.input_path(name, "results.npz"))
-#     np.savez(res_npz,
-#                 time_simu=time_simu,
-#                 fn_simu=fn_simu)
+# # # save the simulated data in a npz file in the case folder
+# # res_npz = os.path.join(os.path.join(output_dir, "results.npz"))
+# # np.savez(res_npz,
+# #          time_simu=time_simu,
+# #          R_0_simu=R_0_simu)
 
-#     plt.scatter(time_analy, fn_analy, label="Analytical")
-#     plt.plot(time_simu, fn_simu, "^-", label="Cabana DEM solver")
-#     plt.legend()
-#     plt.savefig(self.input_path(name, "fn_vs_time.pdf"))
+# plt.plot(time_simu, x_0_simu, label="Rotation matrix index 0")
+# plt.plot(time_simu, x_1_simu, label="Rotation matrix index 1")
+# plt.show()
+# plt.legend()
+# plt.savefig(os.path.join(output_dir, "time_vs_rot_mat_00.pdf"))

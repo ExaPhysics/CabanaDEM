@@ -8,7 +8,62 @@
 
 #include <CabanaDEM.hpp>
 
+typedef Kokkos::View<double*>   ViewVectorType;
+typedef Kokkos::View<double**>  ViewMatrixType;
+
 #define DIM 3
+#define MAX_BONDS 27
+
+
+template <class ExecutionSpace, class ParticleType>
+void applyTensileForce( ParticleType& particles, ViewMatrixType ext_frc )
+{
+  auto x = particles.slicePosition();
+  auto u = particles.sliceVelocity();
+  auto au = particles.sliceAcceleration();
+  auto force = particles.sliceForce();
+  auto torque = particles.sliceTorque();
+  auto omega = particles.sliceOmega();
+  auto m = particles.sliceMass();
+  auto rho = particles.sliceDensity();
+  auto rad = particles.sliceRadius();
+  auto E = particles.sliceYoungsMod();
+  auto nu = particles.slicePoissonsRatio();
+  auto G = particles.sliceShearMod();
+  auto I = particles.sliceMomentOfInertia();
+
+  auto bond_fn_x = particles.sliceBondFnX();
+  auto bond_fn_y = particles.sliceBondFnY();
+  auto bond_fn_z = particles.sliceBondFnZ();
+  auto bond_ft_x = particles.sliceBondFtX();
+  auto bond_ft_y = particles.sliceBondFtY();
+  auto bond_ft_z = particles.sliceBondFtZ();
+  auto bond_mn_x = particles.sliceBondMnX();
+  auto bond_mn_y = particles.sliceBondMnY();
+  auto bond_mn_z = particles.sliceBondMnZ();
+  auto bond_mt_x = particles.sliceBondMtX();
+  auto bond_mt_y = particles.sliceBondMtY();
+  auto bond_mt_z = particles.sliceBondMtZ();
+  auto bond_idx = particles.sliceBondIdx();
+  auto total_no_bonds = particles.sliceTotalNoBonds();
+
+  auto apply_external_full = KOKKOS_LAMBDA( const int i )
+    {
+        /*
+          ====================================
+          Add force to the particle i due to contact with particle j
+          ====================================
+        */
+      force( i, 0 ) += ext_frc( i, 0 );
+      force( i, 1 ) += ext_frc( i, 1 );
+      force( i, 2 ) += ext_frc( i, 2 );
+    };
+
+  Kokkos::RangePolicy<ExecutionSpace> policy( 0, u.size() );
+  Kokkos::parallel_for( "CabanaDEM::Force::ParticleInfiniteWall", policy,
+                        apply_external_full );
+
+}
 
 // Simulate two spherical particles colliding head on
 void BDEMCantileverBeam3D()
@@ -33,9 +88,9 @@ void BDEMCantileverBeam3D()
   // ====================================================
   // CabanaDEM::Inputs inputs( input_filename );
 
-  // // ====================================================
-  // //                Material parameters
-  // // ====================================================
+  // ====================================================
+  //                Material parameters
+  // ====================================================
   // // Particle material properties
   // double rho_p_inp = inputs["particle_density"];
   // double radius_p_inp = inputs["particle_radius"];
@@ -52,6 +107,12 @@ void BDEMCantileverBeam3D()
   // // friction among the interacting bodies
   // double friction_pp_inp = inputs["friction_pp"];
   // double friction_pw_inp = inputs["friction_pw"];
+  // Particle material properties
+  double rho_p_inp = 2000.;
+  double radius_p_inp = 0.5;
+  double  E_p_inp = 1e8;
+  double G_p_inp = 1e7;
+  double nu_p_inp = 0.25;
 
   // // ====================================================
   // //                Geometric properties
@@ -68,81 +129,135 @@ void BDEMCantileverBeam3D()
   //                     ( ( high_corner[0] - low_corner[0] ) / num_cells[0] ) );
   // int halo_width = m + 1; // Just to be safe.
 
-  // // ====================================================
-  // //                 Particle generation
-  // // ====================================================
-  // // Does not set displacements, velocities, etc.
-  // auto particles = std::make_shared<
-  //   CabanaBondedDEM::ParticlesBondedDEM<memory_space, DIM, 27>>(exec_space(), 2);
+  // ====================================================
+  //                 Particle generation
+  // ====================================================
+  // Does not set displacements, velocities, etc.
+  auto particles = CabanaBondedDEM::ParticlesBondedDEM<memory_space, DIM, MAX_BONDS>(exec_space(), 2);
+  particles.update_mesh_limits( {-4. * radius_p_inp, -4. * radius_p_inp, -4. * radius_p_inp},
+                                {4. * radius_p_inp, 4. * radius_p_inp, 4. * radius_p_inp});
 
-  // // ====================================================
-  // //            Custom particle initialization
-  // // ====================================================
-  // auto x_p = particles->slicePosition();
-  // auto u_p = particles->sliceVelocity();
-  // auto m_p = particles->sliceMass();
-  // auto rho_p = particles->sliceDensity();
-  // auto rad_p = particles->sliceRadius();
-  // auto I_p = particles->sliceMomentOfInertia();
-  // auto E_p = particles->sliceYoungsMod();
-  // auto nu_p = particles->slicePoissonsRatio();
-  // auto G_p = particles->sliceShearMod();
+  // ====================================================
+  //            Custom particle initialization
+  // ====================================================
+  // All properties
+  auto x = particles.slicePosition();
+  auto u = particles.sliceVelocity();
+  auto au = particles.sliceAcceleration();
+  auto force = particles.sliceForce();
+  auto torque = particles.sliceTorque();
+  auto omega = particles.sliceOmega();
+  auto m = particles.sliceMass();
+  auto rho = particles.sliceDensity();
+  auto rad = particles.sliceRadius();
+  auto E = particles.sliceYoungsMod();
+  auto nu = particles.slicePoissonsRatio();
+  auto G = particles.sliceShearMod();
+  auto I = particles.sliceMomentOfInertia();
+
+  auto bond_fn_x = particles.sliceBondFnX();
+  auto bond_fn_y = particles.sliceBondFnY();
+  auto bond_fn_z = particles.sliceBondFnZ();
+  auto bond_ft_x = particles.sliceBondFtX();
+  auto bond_ft_y = particles.sliceBondFtY();
+  auto bond_ft_z = particles.sliceBondFtZ();
+  auto bond_mn_x = particles.sliceBondMnX();
+  auto bond_mn_y = particles.sliceBondMnY();
+  auto bond_mn_z = particles.sliceBondMnZ();
+  auto bond_mt_x = particles.sliceBondMtX();
+  auto bond_mt_y = particles.sliceBondMtY();
+  auto bond_mt_z = particles.sliceBondMtZ();
+  auto bond_idx = particles.sliceBondIdx();
+  auto bond_init_len = particles.sliceBondInitLen();
+  auto total_no_bonds = particles.sliceTotalNoBonds();
+
+  auto particles_init_functor = KOKKOS_LAMBDA( const int i )
+    {
+      double m_p_i = 4. / 3. * M_PI * radius_p_inp * radius_p_inp * radius_p_inp * rho_p_inp;
+      double I_p_i = 2. / 5. * m_p_i * radius_p_inp * radius_p_inp;
+      x( i, 0 ) = -radius_p_inp + i * (2. * radius_p_inp);
+      x( i, 1 ) = 0.;
+      x( i, 2 ) = 0.;
+      for (int j = 0; j < 3; ++j) {
+        u( i, j ) = 0.;
+        au( i, j ) = 0.;
+        force( i, j ) = 0.;
+        torque( i, j ) = 0.;
+        omega( i, j ) = 0.;
+      }
+
+      m( i ) = m_p_i;
+      rho( i ) = rho_p_inp;
+      rad( i ) = radius_p_inp;
+      E( i ) = E_p_inp;
+      nu( i ) = nu_p_inp;
+      G( i ) = G_p_inp;
+      I( i ) = I_p_i;
+
+      for (int j = 0; j < MAX_BONDS; ++j) {
+        bond_fn_x( i, j ) = 0.;
+        bond_fn_y( i, j ) = 0.;
+        bond_fn_z( i, j ) = 0.;
+        bond_ft_x( i, j ) = 0.;
+        bond_ft_y( i, j ) = 0.;
+        bond_ft_z( i, j ) = 0.;
+        bond_mn_x( i, j ) = 0.;
+        bond_mn_y( i, j ) = 0.;
+        bond_mn_z( i, j ) = 0.;
+        bond_mt_x( i, j ) = 0.;
+        bond_mt_y( i, j ) = 0.;
+        bond_mt_z( i, j ) = 0.;
+        bond_idx( i, j ) = -1;
+        bond_init_len( i, j ) = 0.;
+      }
+      total_no_bonds( i ) = 0.;
+    };
+
+  particles.updateParticles( exec_space{}, particles_init_functor );
+  particles.setupBonds<exec_space>( );
+
+  CabanaBondedDEM::BondedDEMIntegrator<exec_space> integrator(1e-4);
+
+  // ====================================================
+  //                   Simulation run
+  // ====================================================
+  auto dt = 1e-4;
+  auto final_time = 200 * dt;
+  // auto final_time = 1.;
+  // auto final_time = 2. * M_PI;
+  // auto final_time = 100. * dt;
+  auto time = 0.;
+  int num_steps = final_time / dt;
+  int output_frequency = 100;
+
+  // External force
+  double ext_frc_scalar = 1e3;
+  ViewMatrixType ext_frc( "ext_frc", x.size(), 3);
+  ViewMatrixType::HostMirror host_ext_frc = Kokkos::create_mirror_view( ext_frc );
+  host_ext_frc ( 0, 0 ) = - ext_frc_scalar;
+  host_ext_frc ( 1, 0 ) = ext_frc_scalar;
+  Kokkos::deep_copy( ext_frc, host_ext_frc );
 
 
-  // auto particles_init_functor = KOKKOS_LAMBDA( const int pid )
-  //   {
-  //     // Initial conditions: displacements and velocities
-  //     double m_p_i = 4. / 3. * M_PI * radius_p_inp * radius_p_inp * radius_p_inp * rho_p_inp;
-  //     double I_p_i = 2. / 5. * m_p_i * radius_p_inp * radius_p_inp;
+  for ( int step = 0; step <= num_steps; step++ )
+    {
+      integrator.stage1( particles );
 
-  //     x_p( pid, 0 ) = -radius_p_inp + pid * (2. * radius_p_inp) + pid * radius_p_inp / 100.;
-  //     x_p( pid, 1 ) = 0.;
-  //     x_p( pid, 2 ) = 0.;
-  //     u_p( pid, 0 ) = velocity_p_inp;
-  //     if (pid == 1) u_p( pid, 0 ) = -velocity_p_inp;
-  //     u_p( pid, 1 ) = 0.0;
-  //     u_p( pid, 2 ) = 0.0;
+      integrator.stage2( particles );
 
-  //     m_p( pid ) = m_p_i;
-  //     I_p( pid ) = I_p_i;
-  //     rho_p( pid ) = rho_p_inp;
-  //     rad_p( pid ) = radius_p_inp;
-  //     E_p( pid ) = E_p_inp;
-  //     G_p( pid ) = G_p_inp;
-  //     nu_p( pid ) = nu_p_inp;
-  //     for (int j=0; j < 6; j++){
-  //       tangential_disp_ss_x( pid, j ) = 0.;
-  //       tangential_disp_ss_y( pid, j ) = 0.;
-  //       tangential_disp_ss_z( pid, j ) = 0.;
-  //       tangential_disp_idx( pid, j ) = -1;
-  //     }
-  //     total_no_tangential_contacts( pid ) = 0;
-  //   };
+      CabanaBondedDEM::resetForcesAndTorques<exec_space>( particles );
+      applyTensileForce<exec_space>( particles, ext_frc );
+      CabanaBondedDEM::computeBondedForce<exec_space>( particles, dt );
 
-  // particles->updateParticles( exec_space{}, particles_init_functor );
+      integrator.stage3( particles );
 
-  // // ====================================================
-  // //                 Set the neighbours mesh limits
-  // // ====================================================
-  // particles->mesh_lo[0] = -4. * 0.01;
-  // particles->mesh_lo[1] = -4. * 0.01;
-  // particles->mesh_lo[2] = -4. * 0.01;
-
-  // particles->mesh_hi[0] = 4. * 0.01;
-  // particles->mesh_hi[1] = 4. * 0.01;
-  // particles->mesh_hi[2] = 4. * 0.01;
-
-
-  // // ====================================================
-  // //                   Create solver
-  // // ====================================================
-  // auto cabana_bdem = CabanaBondedDEM::createSolverBondedDEM<memory_space>( particles, );
-
-  // // ====================================================
-  // //                   Simulation run
-  // // ====================================================
-  // // cabana_dem->init();
-  // cabana_bdem->run();
+      if ( step % output_frequency == 0 )
+        {
+          std::cout << "We are at " << step << " " << "/ " << num_steps;
+          std::cout << std::endl;
+          particles.output( step / output_frequency, step * dt);
+        }
+    }
 }
 
 // Initialize MPI+Kokkos.

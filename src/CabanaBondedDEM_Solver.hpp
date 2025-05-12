@@ -7,9 +7,9 @@
 
 namespace CabanaBondedDEM
 {
-  // template <class MemorySpace, class ParticleType>
-  // class SolverBondedDEM
-  // {
+  template <class MemorySpace, class ParticleType>
+  class SolverBondedDEM
+  {
   // public:
   //   using memory_space = MemorySpace;
   //   using exec_space = typename memory_space::execution_space;
@@ -101,20 +101,18 @@ namespace CabanaBondedDEM
   //   std::shared_ptr<particle_type> particles;
   //   std::shared_ptr<integrator_type> integrator;
   //   double delta;
-  // };
+  };
 
 
   // //---------------------------------------------------------------------------//
   // // Creation method.
-  // template <class MemorySpace, class ParticleType, class WallType,
-  //           class ForceModel>
+  // template <class MemorySpace, class ParticleType>
   // auto createSolverBondedDEM(std::shared_ptr<ParticleType> particles,
   //                            double delta)
   // {
   //   return std::make_shared<
   //     SolverBondedDEM<MemorySpace, ParticleType>>(particles, delta);
   // }
-
 }
 
 #endif

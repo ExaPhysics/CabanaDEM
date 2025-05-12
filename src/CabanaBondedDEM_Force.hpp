@@ -1,5 +1,5 @@
-#ifndef CABANAForce_HPP
-#define CABANAForce_HPP
+#ifndef CabanaBondedDEMForce_HPP
+#define CabanaBondedDEMForce_HPP
 
 #include <cmath>
 
@@ -12,7 +12,44 @@
 
 namespace CabanaBondedDEM
 {
-  template <class ParticleType>
+  template <class ExecutionSpace, class ParticleType>
+  void resetForcesAndTorques( ParticleType& particles )
+  {
+    auto x = particles.slicePosition();
+    auto u = particles.sliceVelocity();
+    auto au = particles.sliceAcceleration();
+    auto force = particles.sliceForce();
+    auto torque = particles.sliceTorque();
+    auto omega = particles.sliceOmega();
+    auto m = particles.sliceMass();
+    auto rho = particles.sliceDensity();
+    auto rad = particles.sliceRadius();
+    auto E = particles.sliceYoungsMod();
+    auto nu = particles.slicePoissonsRatio();
+    auto G = particles.sliceShearMod();
+    auto I = particles.sliceMomentOfInertia();
+
+    auto bond_fn_x = particles.sliceBondFnX();
+    auto bond_fn_y = particles.sliceBondFnY();
+    auto bond_fn_z = particles.sliceBondFnZ();
+    auto bond_ft_x = particles.sliceBondFtX();
+    auto bond_ft_y = particles.sliceBondFtY();
+    auto bond_ft_z = particles.sliceBondFtZ();
+    auto bond_mn_x = particles.sliceBondMnX();
+    auto bond_mn_y = particles.sliceBondMnY();
+    auto bond_mn_z = particles.sliceBondMnZ();
+    auto bond_mt_x = particles.sliceBondMtX();
+    auto bond_mt_y = particles.sliceBondMtY();
+    auto bond_mt_z = particles.sliceBondMtZ();
+    auto bond_idx = particles.sliceBondIdx();
+    auto bond_init_len = particles.sliceBondInitLen();
+    auto total_no_bonds = particles.sliceTotalNoBonds();
+
+    Cabana::deep_copy( force, 0. );
+    Cabana::deep_copy( torque, 0. );
+  }
+
+  template <class ExecutionSpace, class ParticleType>
   void computeBondedForce( ParticleType& particles, double dt )
   {
     auto x = particles.slicePosition();
@@ -42,14 +79,14 @@ namespace CabanaBondedDEM
     auto bond_mt_y = particles.sliceBondMtY();
     auto bond_mt_z = particles.sliceBondMtZ();
     auto bond_idx = particles.sliceBondIdx();
-    auto total_no_bonds = particles.totalNoBonds();
-
+    auto bond_init_len = particles.sliceBondInitLen();
+    auto total_no_bonds = particles.sliceTotalNoBonds();
 
 
     auto force_full = KOKKOS_LAMBDA( const int i )
       {
         auto no_bonds_i = total_no_bonds ( i );
-        for (int j=0; j < no_bonds; j++){
+        for (int j=0; j < no_bonds_i; j++){
           /*
             Common to all equations in SPH.
 
@@ -61,14 +98,6 @@ namespace CabanaBondedDEM
             5. Kernel value
             6. Derivative of kernel value
           */
-          double pos_i[3] = {x( i, 0 ),
-                             x( i, 1 ),
-                             x( i, 2 )};
-
-          double pos_j[3] = {x( j, 0 ),
-                             x( j, 1 ),
-                             x( j, 2 )};
-
           double pos_ij[3] = {x( i, 0 ) - x( j, 0 ),
                               x( i, 1 ) - x( j, 1 ),
                               x( i, 2 ) - x( j, 2 )};
@@ -78,58 +107,60 @@ namespace CabanaBondedDEM
           // distance between i and j
           double rij = sqrt(r2ij);
 
+          double g_c = rij - rad ( i ) - rad ( j );
+          double a_i = rad ( i ) + g_c / 2.;
+          double a_j = rad ( j ) + g_c / 2.;
+
           const double mass_i = m( i );
 
           // normal vector passing from j to i
-          double nij_x = pos_ij[0] / rij;
-          double nij_y = pos_ij[1] / rij;
-          double nij_z = pos_ij[2] / rij;
+          double normal[3] = {pos_ij[0] / rij, pos_ij[1] / rij, pos_ij[2] / rij};
 
           double vel_i[3] = {0., 0., 0.};
+          double vel_j[3] = {0., 0., 0.};
+          double vrel[3] = {0., 0., 0.};
+          double vrel_n[3] = {0., 0., 0.};
+          double vrel_t[3] = {0., 0., 0.};
 
           vel_i[0] = u ( i, 0 ) +
-            (omega( i, 1 ) * nij_z - omega( i, 2 ) * nij_y) * a_i;
+            (omega( i, 1 ) * normal[2] - omega( i, 2 ) * normal[1]) * a_i;
 
           vel_i[1] = u ( i, 1 ) +
-            (omega( i, 2 ) * nij_x - omega( i, 0 ) * nij_z) * a_i;
+            (omega( i, 2 ) * normal[0] - omega( i, 0 ) * normal[2]) * a_i;
 
           vel_i[2] = u ( i, 2 ) +
-            (omega( i, 0 ) * nij_y - omega( i, 1 ) * nij_x) * a_i;
-
-          double vel_j[3] = {0., 0., 0.};
+            (omega( i, 0 ) * normal[1] - omega( i, 1 ) * normal[0]) * a_i;
 
           vel_j[0] = u ( j, 0 ) +
-            (-omega( j, 1 ) * nij_z + omega( j, 2 ) * nij_y) * a_j;
+            (-omega( j, 1 ) * normal[2] + omega( j, 2 ) * normal[1]) * a_j;
 
           vel_j[1] = u ( i, 1 ) +
-            (-omega( j, 2 ) * nij_x + omega( j, 0 ) * nij_z) * a_j;
+            (-omega( j, 2 ) * normal[0] + omega( j, 0 ) * normal[2]) * a_j;
 
           vel_j[2] = u ( i, 2 ) +
-            (-omega( j, 0 ) * nij_y + omega( j, 1 ) * nij_x) * a_j;
+            (-omega( j, 0 ) * normal[1] + omega( j, 1 ) * normal[0]) * a_j;
 
-          // Now the relative velocity of particle i w.r.t j at the contact
-          // point is
-          double vel_ij[3] = {vel_i[0] - vel_j[0],
-                              vel_i[1] - vel_j[1],
-                              vel_i[2] - vel_j[2]};
+          vrel[0] = vel_i[0] - vel_j[0];
+          vrel[1] = vel_i[1] - vel_j[1];
+          vrel[2] = vel_i[2] - vel_j[2];
 
-          // normal velocity magnitude
-          double vij_dot_nij = vel_ij[0] * nij_x + vel_ij[1] * nij_y + vel_ij[2] * nij_z;
-          double vn_x = vij_dot_nij * nij_x;
-          double vn_y = vij_dot_nij * nij_y;
-          double vn_z = vij_dot_nij * nij_z;
+          // Calculate normal and tangential components of relative velocity
+          double vdp = vrel[0] * normal[0] + vrel[1] * normal[1] + vrel[2] * normal[2];
+          vrel_n[0] = vdp * normal[0];
+          vrel_n[1] = vdp * normal[1];
+          vrel_n[2] = vdp * normal[2];
 
-          // tangential velocity
-          double vt_x = vel_ij[0] - vn_x;
-          double vt_y = vel_ij[1] - vn_y;
-          double vt_z = vel_ij[2] - vn_z;
+          vrel_t[0] = vrel[0] - vrel_n[0];
+          vrel_t[1] = vrel[1] - vrel_n[1];
+          vrel_t[2] = vrel[2] - vrel_n[2];
+
 
           double wr[3] = {omega( i, 0 ) - omega( j, 0 ),
                           omega( i, 1 ) - omega( j, 1 ),
                           omega( i, 2 ) - omega( j, 2 )};
 
-          double wdp = wr[0] * nij_x + wr[1] * nij_y + wr[2] * nij_z;
-          double wn[3] = {wdp*nij_x, wdp*nij_y, wdp*nij_z};
+          double wdp = wr[0] * normal[0] + wr[1] * normal[1] + wr[2] * normal[2];
+          double wn[3] = {wdp*normal[0], wdp*normal[1], wdp*normal[2]};
           double wt[3] = {wr[0] - wn[0], wr[1] - wn[1], wr[2] - wn[2]};
 
           /*
@@ -143,20 +174,37 @@ namespace CabanaBondedDEM
             // So we are computing force on particle i, base your equations on this point
             ====================================
           */
+          double rad_sum = rad( i ) + rad( j );
+          double radsuminv = 1.0 / (rad_sum);
+          // Define the bond constants to be used below
+          // This should be input
+          double beta_bond = 1.;  // input
+          double bond_radius_factor = 1.;  // input
+          double bond_rad = std::min(rad( i ), rad( j )) * 1.;
+          double A_bond = M_PI * pow(bond_rad, 2.);
+          double I_bond = M_PI * pow(bond_rad, 4.) / 4.0;
+          double I_p_bond = I_bond * 2.0;
+
+          // Stiffnesses for Bernoulli beam model and bond damping calculations
+          // TODO: These Youngs mod and Shear modulus values should be checked
+          double k_n_bond = E ( i ) * A_bond / rad_sum;
+          double k_t_bond = G ( i ) * A_bond / rad_sum;
+          double k_tor_bond = G ( i ) * I_p_bond / rad_sum;
+          double k_ben_bond = E ( i ) * I_bond / rad_sum;
 
           /*
             ====================================
             ------- Normal bond force -------
             ====================================
           */
-          double fn[0] = {0.0, 0.0, 0.0};
-          double fn_damped[0] = {0.0, 0.0, 0.0};
-          double k_n_bond = 1.;
-          fn[0] = -k_n_bond * overlap_n * nij_x;
-          fn[1] = -k_n_bond * overlap_n * nij_y;
-          fn[2] = -k_n_bond * overlap_n * nij_z;
+          double fn[3] = {0.0, 0.0, 0.0};
+          double fn_damped[3] = {0.0, 0.0, 0.0};
+          double overlap_n = rij - bond_init_len( i, j );
+          fn[0] = -k_n_bond * overlap_n * normal[0];
+          fn[1] = -k_n_bond * overlap_n * normal[1];
+          fn[2] = -k_n_bond * overlap_n * normal[2];
 
-          double minvel = 1e-5 * std::min(rad1,rad2) /dt;
+          double minvel = 1e-5 * std::min( rad ( i ), rad ( j ) ) /dt;
           double dvX = 0.01 * fn[0]*dt;
           double dvY = 0.01 * fn[1]*dt;
           double dvZ = 0.01 * fn[2]*dt;
@@ -164,7 +212,6 @@ namespace CabanaBondedDEM
           double multiplierY = (vrel_n[1] >= 0.0) ? 1.0 : -1.0;
           double multiplierZ = (vrel_n[2] >= 0.0) ? 1.0 : -1.0;
 
-          double beta_bond = 1.;
           fn_damped[0] = fn[0] - beta_bond*fabs(fn[0]) * multiplierX;
           fn_damped[1] = fn[1] - beta_bond*fabs(fn[1]) * multiplierY;
           fn_damped[2] = fn[2] - beta_bond*fabs(fn[2]) * multiplierZ;
@@ -178,8 +225,8 @@ namespace CabanaBondedDEM
                           bond_ft_y (i, j),
                           bond_ft_z (i, j)};
           double ft_damped[3] = {0.0, 0.0, 0.0};
-          double fdp = ft[0] * nij_x + ft[1] * nij_y + ft[2] * nij_z;
-          double ft_norm[3] = {fdp*nij_x, fdp*nij_y, fdp*nij_z};
+          double fdp = ft[0] * normal[0] + ft[1] * normal[1] + ft[2] * normal[2];
+          double ft_norm[3] = {fdp*normal[0], fdp*normal[1], fdp*normal[2]};
           ft[0] -= ft_norm[0];
           ft[1] -= ft_norm[1];
           ft[2] -= ft_norm[2];
@@ -197,7 +244,6 @@ namespace CabanaBondedDEM
           multiplierX = (vrel_t[0] >= 0.0) ? 1.0 : -1.0;
           multiplierY = (vrel_t[1] >= 0.0) ? 1.0 : -1.0;
           multiplierZ = (vrel_t[2] >= 0.0) ? 1.0 : -1.0;
-          double k_n_bond = 1.;
           ft_damped[0] = ft[0] - beta_bond*fabs(ft[0])*multiplierX;
           ft_damped[1] = ft[1] - beta_bond*fabs(ft[1])*multiplierY;
           ft_damped[2] = ft[2] - beta_bond*fabs(ft[2])*multiplierZ;
@@ -215,19 +261,23 @@ namespace CabanaBondedDEM
                                bond_mn_y (i, j),
                                bond_mn_z (i, j)};
           double ntorq_damped[3] = {0.0, 0.0, 0.0};
-          double tdp = torq_norm[0] * nij_x + torq_norm[1] * nij_y + torq_norm[2] * nij_z;
-          torq_norm[0] = tdp * nij_x;
-          torq_norm[1] = tdp * nij_y;
-          torq_norm[2] = tdp * nij_z;
+          double tdp = torq_norm[0] * normal[0] + torq_norm[1] * normal[1] + torq_norm[2] * normal[2];
+          torq_norm[0] = tdp * normal[0];
+          torq_norm[1] = tdp * normal[1];
+          torq_norm[2] = tdp * normal[2];
 
           tmp = k_tor_bond * dt;
           double dntorque[3] = {-wn[0] * tmp, -wn[1] * tmp, -wn[2] * tmp};
           torq_norm[0] += dntorque[0];
           torq_norm[1] += dntorque[1];
           torq_norm[2] += dntorque[2];
-          ntorq_damped[0] = torq_norm[0] - DEM::beta_bond*fabs(torq_norm[0])*amrex::Math::copysign(1.0,wn[0]);
-          ntorq_damped[1] = torq_norm[1] - DEM::beta_bond*fabs(torq_norm[1])*amrex::Math::copysign(1.0,wn[1]);
-          ntorq_damped[2] = torq_norm[2] - DEM::beta_bond*fabs(torq_norm[2])*amrex::Math::copysign(1.0,wn[2]);
+
+          multiplierX = (wn[0] >= 0.0) ? 1.0 : -1.0;
+          multiplierY = (wn[1] >= 0.0) ? 1.0 : -1.0;
+          multiplierZ = (wn[2] >= 0.0) ? 1.0 : -1.0;
+          ntorq_damped[0] = torq_norm[0] - beta_bond*fabs(torq_norm[0])*multiplierX;
+          ntorq_damped[1] = torq_norm[1] - beta_bond*fabs(torq_norm[1])*multiplierY;
+          ntorq_damped[2] = torq_norm[2] - beta_bond*fabs(torq_norm[2])*multiplierZ;
 
           bond_mn_x (i, j)= ntorq_damped[0];
           bond_mn_y (i, j)= ntorq_damped[1];
@@ -241,29 +291,33 @@ namespace CabanaBondedDEM
           double torq_tang[3] = {bond_mt_x (i, j),
                                  bond_mt_y (i, j),
                                  bond_mt_z (i, j)};
-          double ttorq_damped[3] = {0.0, 0.0, 0.0};
-          tdp = torq_tang[0] * nij_x + torq_tang[1] * nij_y + torq_tang[2] * nij_z;
-          torq_tang[0] -= tdp * nij_x;
-          torq_tang[1] -= tdp * nij_y;
-          torq_tang[2] -= tdp * nij_z;
+          tdp = torq_tang[0] * normal[0] + torq_tang[1] * normal[1] + torq_tang[2] * normal[2];
+          torq_tang[0] -= tdp * normal[0];
+          torq_tang[1] -= tdp * normal[1];
+          torq_tang[2] -= tdp * normal[2];
 
           tmp = k_ben_bond * dt;
           double dttorque[3] = {-wt[0] * tmp, -wt[1] * tmp, -wt[2] * tmp};
           torq_tang[0] += dttorque[0];
           torq_tang[1] += dttorque[1];
           torq_tang[2] += dttorque[2];
-          ttorq_damped[0] = torq_tang[0] - DEM::beta_bond*fabs(torq_tang[0])*amrex::Math::copysign(1.0,wt[0]);
-          ttorq_damped[1] = torq_tang[1] - DEM::beta_bond*fabs(torq_tang[1])*amrex::Math::copysign(1.0,wt[1]);
-          ttorq_damped[2] = torq_tang[2] - DEM::beta_bond*fabs(torq_tang[2])*amrex::Math::copysign(1.0,wt[2]);
 
-          bond_mt_x (i, j)= ttorq_damped[0];
-          bond_mt_y (i, j)= ttorq_damped[1];
-          bond_mt_z (i, j)= ttorq_damped[2];
+          double ttorq_damped[3] = {0.0, 0.0, 0.0};
+          multiplierX = (wt[0] >= 0.0) ? 1.0 : -1.0;
+          multiplierY = (wt[1] >= 0.0) ? 1.0 : -1.0;
+          multiplierZ = (wt[2] >= 0.0) ? 1.0 : -1.0;
+          ttorq_damped[0] = torq_tang[0] - beta_bond*fabs(torq_tang[0])*multiplierX;
+          ttorq_damped[1] = torq_tang[1] - beta_bond*fabs(torq_tang[1])*multiplierY;
+          ttorq_damped[2] = torq_tang[2] - beta_bond*fabs(torq_tang[2])*multiplierZ;
+
+          bond_mt_x (i, j) = ttorq_damped[0];
+          bond_mt_y (i, j) = ttorq_damped[1];
+          bond_mt_z (i, j) = ttorq_damped[2];
 
           // Add on cross product term (should not be included in tau_bond_t update)
-          double tor[THREEDIM] = {0.0, 0.0, 0.0};
-          crosspdt(tforce_damped, normal, tor);
-          double cri = distmag * rad1 * radsuminv;
+          double tor[3] = {0.0, 0.0, 0.0};
+          // crosspdt(tforce_damped, normal, tor);
+          double cri = rij * 1. / rad ( i ) * 1. / ( rad ( i ) + rad ( j ));
 
           /*
             ====================================

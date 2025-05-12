@@ -1,5 +1,5 @@
-#ifndef CabanaDEM_TIMEINTEGRATOR_HPP
-#define CabanaDEM_TIMEINTEGRATOR_HPP
+#ifndef CabanaBondedDEM_TIMEINTEGRATOR_HPP
+#define CabanaBondedDEM_TIMEINTEGRATOR_HPP
 
 #include <memory>
 
@@ -19,13 +19,13 @@ namespace CabanaBondedDEM
 
     double _dt, _half_dt;
   public:
-    Integrator ( double dt )
+    BondedDEMIntegrator( double dt )
       : _dt (dt)
     {
       _half_dt = 0.5 * dt;
 
     }
-    ~Integrator() {}
+    ~BondedDEMIntegrator() {}
 
     template <class ParticlesType>
     void stage1(ParticlesType& p){
