@@ -86,7 +86,12 @@ namespace CabanaBondedDEM
     auto force_full = KOKKOS_LAMBDA( const int i )
       {
         auto no_bonds_i = total_no_bonds ( i );
-        for (int j=0; j < no_bonds_i; j++){
+        for (int k=0; k < no_bonds_i; k++){
+          // Get the bond index
+          int j = bond_idx (i, k );
+          // if (i == 1) {
+          //     std::cout << j;
+          //   }
           /*
             Common to all equations in SPH.
 
@@ -178,9 +183,9 @@ namespace CabanaBondedDEM
           double radsuminv = 1.0 / (rad_sum);
           // Define the bond constants to be used below
           // This should be input
-          double beta_bond = 1.;  // input
+          double beta_bond = 1e-1;  // input
           double bond_radius_factor = 1.;  // input
-          double bond_rad = std::min(rad( i ), rad( j )) * 1.;
+          double bond_rad = std::min(rad( i ), rad( j )) * bond_radius_factor;
           double A_bond = M_PI * pow(bond_rad, 2.);
           double I_bond = M_PI * pow(bond_rad, 4.) / 4.0;
           double I_p_bond = I_bond * 2.0;
@@ -212,9 +217,11 @@ namespace CabanaBondedDEM
           double multiplierY = (vrel_n[1] >= 0.0) ? 1.0 : -1.0;
           double multiplierZ = (vrel_n[2] >= 0.0) ? 1.0 : -1.0;
 
-          fn_damped[0] = fn[0] - beta_bond*fabs(fn[0]) * multiplierX;
-          fn_damped[1] = fn[1] - beta_bond*fabs(fn[1]) * multiplierY;
-          fn_damped[2] = fn[2] - beta_bond*fabs(fn[2]) * multiplierZ;
+          fn_damped[0] = fn[0] + beta_bond*fabs(fn[0]) * multiplierX;
+          fn_damped[1] = fn[1] + beta_bond*fabs(fn[1]) * multiplierY;
+          fn_damped[2] = fn[2] + beta_bond*fabs(fn[2]) * multiplierZ;
+          double beta = - beta_bond*fabs(fn[0]) * multiplierX;
+          std::cout << "The beta force is " << beta << std::endl;
 
           /*
             ====================================
@@ -232,7 +239,7 @@ namespace CabanaBondedDEM
           ft[2] -= ft_norm[2];
 
           double tmp = k_t_bond*dt;
-          double dft[3] = {-vrel_t[0] * tmp, -vrel_t[0] * tmp, -vrel_t[0] * tmp};
+          double dft[3] = {-vrel_t[0] * tmp, -vrel_t[1] * tmp, -vrel_t[2] * tmp};
 
           ft[0] += dft[0];
           ft[1] += dft[1];
@@ -258,8 +265,8 @@ namespace CabanaBondedDEM
             ====================================
           */
           double torq_norm[3] = {bond_mn_x (i, j),
-                               bond_mn_y (i, j),
-                               bond_mn_z (i, j)};
+                                 bond_mn_y (i, j),
+                                 bond_mn_z (i, j)};
           double ntorq_damped[3] = {0.0, 0.0, 0.0};
           double tdp = torq_norm[0] * normal[0] + torq_norm[1] * normal[1] + torq_norm[2] * normal[2];
           torq_norm[0] = tdp * normal[0];

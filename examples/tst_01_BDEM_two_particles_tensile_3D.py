@@ -35,7 +35,9 @@ os.system('cd ' + output_dir + '&& ./Tst01BDEMTwoParticlesTensile3D ' + cli_args
 cabana = h5py.File(output_dir + "/particles_0.h5", "r")
 
 total_no_bonds = cabana['total_no_bonds'][:]
-print(total_no_bonds)
+bond_idx = cabana['bond_idx'][:]
+# print(total_no_bonds)
+print(bond_idx)
 # cabana_sin_appr = cabana['pressure'][:]
 # cabana_sin_analytical = cabana['wij'][:]
 
@@ -66,34 +68,47 @@ print(total_no_bonds)
 # # plt.axes().set_aspect('equal', 'box')
 # plt.show()
 
-# from utils import get_files, get_files_rigid_bodies
-# files = get_files(output_dir)
+from utils import get_files, get_files_rigid_bodies
+files = get_files(output_dir)
 # print(files)
 
-# # TODO add one more condition to skip this plot and go to direct comparision plots
-# if len(files) > 0:
-#     # print(directory_name+files[0])
-#     x_0_simu = []
-#     x_1_simu = []
-#     time_simu = []
-#     for f_name in files:
-#         f_path = os.path.join(output_dir, f_name)
-#         f = h5py.File(f_path, "r")
-#         # print(f["rot_mat_cm"][:])
-#         x_0_simu.append(f["x"][0][0])
-#         x_1_simu.append(f["x"][1][0])
-#         time_simu.append(f.attrs["Time"])
-# else:
-#     sys.exit("Files are empty")
 
-# # # save the simulated data in a npz file in the case folder
-# # res_npz = os.path.join(os.path.join(output_dir, "results.npz"))
-# # np.savez(res_npz,
-# #          time_simu=time_simu,
-# #          R_0_simu=R_0_simu)
+f_path = os.path.join(output_dir, files[20])
+cabana = h5py.File(f_path, "r")
+
+total_no_bonds = cabana['total_no_bonds'][:]
+bond_idx = cabana['bond_idx'][:]
+force = cabana['force'][:]
+# print(force)
+
+
+# TODO add one more condition to skip this plot and go to direct comparision plots
+if len(files) > 0:
+    # print(directory_name+files[0])
+    x_0_simu = []
+    x_1_simu = []
+    force_0 = []
+    time_simu = []
+    for f_name in files:
+        f_path = os.path.join(output_dir, f_name)
+        f = h5py.File(f_path, "r")
+        # print(f["rot_mat_cm"][:])
+        x_0_simu.append(f["x"][0][0])
+        x_1_simu.append(f["x"][1][0])
+        force_0.append(f["force"][1][0])
+        time_simu.append(f.attrs["Time"])
+else:
+    sys.exit("Files are empty")
+
+# # save the simulated data in a npz file in the case folder
+# res_npz = os.path.join(os.path.join(output_dir, "results.npz"))
+# np.savez(res_npz,
+#          time_simu=time_simu,
+#          R_0_simu=R_0_simu)
 
 # plt.plot(time_simu, x_0_simu, label="Rotation matrix index 0")
 # plt.plot(time_simu, x_1_simu, label="Rotation matrix index 1")
-# plt.show()
-# plt.legend()
-# plt.savefig(os.path.join(output_dir, "time_vs_rot_mat_00.pdf"))
+plt.plot(time_simu, force_0, label="Force on 0")
+plt.show()
+plt.legend()
+plt.savefig(os.path.join(output_dir, "time_vs_force.pdf"))

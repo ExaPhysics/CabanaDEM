@@ -16,6 +16,57 @@ typedef Kokkos::View<double**>  ViewMatrixType;
 
 
 template <class ExecutionSpace, class ParticleType>
+void applyBoundaryConditions( ParticleType& particles )
+{
+  auto x = particles.slicePosition();
+  auto u = particles.sliceVelocity();
+  auto au = particles.sliceAcceleration();
+  auto force = particles.sliceForce();
+  auto torque = particles.sliceTorque();
+  auto omega = particles.sliceOmega();
+  auto m = particles.sliceMass();
+  auto rho = particles.sliceDensity();
+  auto rad = particles.sliceRadius();
+  auto E = particles.sliceYoungsMod();
+  auto nu = particles.slicePoissonsRatio();
+  auto G = particles.sliceShearMod();
+  auto I = particles.sliceMomentOfInertia();
+
+  auto bond_fn_x = particles.sliceBondFnX();
+  auto bond_fn_y = particles.sliceBondFnY();
+  auto bond_fn_z = particles.sliceBondFnZ();
+  auto bond_ft_x = particles.sliceBondFtX();
+  auto bond_ft_y = particles.sliceBondFtY();
+  auto bond_ft_z = particles.sliceBondFtZ();
+  auto bond_mn_x = particles.sliceBondMnX();
+  auto bond_mn_y = particles.sliceBondMnY();
+  auto bond_mn_z = particles.sliceBondMnZ();
+  auto bond_mt_x = particles.sliceBondMtX();
+  auto bond_mt_y = particles.sliceBondMtY();
+  auto bond_mt_z = particles.sliceBondMtZ();
+  auto bond_idx = particles.sliceBondIdx();
+  auto total_no_bonds = particles.sliceTotalNoBonds();
+
+  auto apply_external_full = KOKKOS_LAMBDA( const int i )
+    {
+        /*
+          ====================================
+          Add force to the particle i due to contact with particle j
+          ====================================
+        */
+      force( 0, 0 ) = 0.;
+      force( 0, 1 ) = 0.;
+      force( 0, 2 ) = 0.;
+    };
+
+  Kokkos::RangePolicy<ExecutionSpace> policy( 0, u.size() );
+  Kokkos::parallel_for( "CabanaDEM::Force::ParticleInfiniteWall", policy,
+                        apply_external_full );
+
+}
+
+
+template <class ExecutionSpace, class ParticleType>
 void applyTensileForce( ParticleType& particles, ViewMatrixType ext_frc )
 {
   auto x = particles.slicePosition();
@@ -110,8 +161,8 @@ void BDEMCantileverBeam3D()
   // Particle material properties
   double rho_p_inp = 2000.;
   double radius_p_inp = 0.5;
-  double  E_p_inp = 1e8;
-  double G_p_inp = 1e7;
+  double  E_p_inp = 1e4;
+  double G_p_inp = 1e3;
   double nu_p_inp = 0.25;
 
   // // ====================================================
@@ -222,8 +273,9 @@ void BDEMCantileverBeam3D()
   //                   Simulation run
   // ====================================================
   auto dt = 1e-4;
-  auto final_time = 200 * dt;
-  // auto final_time = 1.;
+  // auto final_time = 10 * dt;
+  auto final_time = 4.;
+  // auto final_time = 0.1;
   // auto final_time = 2. * M_PI;
   // auto final_time = 100. * dt;
   auto time = 0.;
@@ -234,7 +286,8 @@ void BDEMCantileverBeam3D()
   double ext_frc_scalar = 1e3;
   ViewMatrixType ext_frc( "ext_frc", x.size(), 3);
   ViewMatrixType::HostMirror host_ext_frc = Kokkos::create_mirror_view( ext_frc );
-  host_ext_frc ( 0, 0 ) = - ext_frc_scalar;
+  // host_ext_frc ( 0, 0 ) = - ext_frc_scalar;
+  host_ext_frc ( 0, 0 ) = -ext_frc_scalar;
   host_ext_frc ( 1, 0 ) = ext_frc_scalar;
   Kokkos::deep_copy( ext_frc, host_ext_frc );
 
@@ -248,6 +301,7 @@ void BDEMCantileverBeam3D()
       CabanaBondedDEM::resetForcesAndTorques<exec_space>( particles );
       applyTensileForce<exec_space>( particles, ext_frc );
       CabanaBondedDEM::computeBondedForce<exec_space>( particles, dt );
+      applyBoundaryConditions<exec_space>( particles );
 
       integrator.stage3( particles );
 
