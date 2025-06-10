@@ -1,33 +1,140 @@
-"""
-Follow paper [1].  Paper [2] also has good explanation about
-bond-based peridynamics which we have implemented in this work.  For
-code look into [1c] and [2c]. Here [2c] follows paper [2] equations
-for bond-based model.
+# # ========================================================
+# Follow paper [1].  Paper [2] also has good explanation about
+# bond-based peridynamics which we have implemented in this work.  For
+# code look into [1c] and [2c]. Here [2c] follows paper [2] equations
+# for bond-based model.
 
 
 
-[1] A coupled peridynamics--smoothed particle hydrodynamics model for fracture analysis of fluid--structure interactions
-[2] Guan, Jinwei, and Li Guo. "A unified bond–based peridynamic model without limitation of Poisson's ratio." Applied Mathematical Modelling 128 (2024): 609-629. https://www.sciencedirect.com/science/article/pii/S0307904X24000143
+# [1] A coupled peridynamics--smoothed particle hydrodynamics model for fracture analysis of fluid--structure interactions
+# [2] Guan, Jinwei, and Li Guo. "A unified bond–based peridynamic model without limitation of Poisson's ratio." Applied Mathematical Modelling 128 (2024): 609-629. https://www.sciencedirect.com/science/article/pii/S0307904X24000143
 
-[1c] https://github.com/ORNL/PDMATLAB2D.
-[2c] https://github.com/PeriHub/PeriLab.jl
+# [1c] https://github.com/ORNL/PDMATLAB2D.
+# [2c] https://github.com/PeriHub/PeriLab.jl
 
-*c implies code
-"""
+# *c implies code
+# # ========================================================
+
+# ## Bond based peridynamics
+
+# ### From paper [1], the force formulation is given as:
+
+# $$
+# \textbf{F} = \mu c (\boldsymbol{\xi}) s (\boldsymbol{\eta}, \boldsymbol{\xi}) \frac{\boldsymbol{\eta} + \boldsymbol{\xi}}{||\boldsymbol{\eta} + \boldsymbol{\xi}||}
+# $$
+
+# Essentially here, we are multiplying the foce magnitude, $\mu c
+# (\boldsymbol{\xi}) s (\boldsymbol{\eta}, \boldsymbol{\xi})$ with the force direction
+# which is the current vector passing from particle $i$ to particle $j$.
+
+# Few points to note here are, \boldsymbol{\xi} is defined as the vector passing from particle $i$
+# to particle $j$ in the reference frame (i.e., in the initial configuration), while
+# $\boldsymbol{\eta} + \boldsymbol{\xi}$ is in the current configuration.
+
+# $s (\boldsymbol{\eta}, \boldsymbol{\xi})$ is the bond length ratio, defined as
+
+# $$
+# s = \frac{||\boldsymbol{\eta} + \boldsymbol{\xi}|| - ||\boldsymbol{\xi}||}{||\boldsymbol{\xi}||}
+# $$
 from math import (sqrt, asin, sin, cos)
 import numpy as np
+import os
+import shutil
+import matplotlib.pyplot as plt
 from numpy import sqrt, fabs
+from mpl_toolkits.mplot3d import Axes3D
+
 from pysph.sph.equation import Equation
 from pysph.sph.scheme import Scheme
 from pysph.sph.scheme import add_bool_argument
 from pysph.tools.sph_evaluator import SPHEvaluator
 from pysph.sph.equation import Group, MultiStageEquations
-from pysph.base.kernels import (CubicSpline, WendlandQuintic, QuinticSpline,
-                                WendlandQuinticC4, Gaussian, SuperGaussian)
+from pysph.base.kernels import QuinticSpline
 from textwrap import dedent
 from compyle.api import declare
 from pysph.sph.integrator_step import IntegratorStep
 from pysph.base.utils import get_particle_array
+from pysph.sph.integrator import Integrator
+
+
+def scatter_bonded_particles(pa, must_plot_indices, folder_name, dim=2, show_plot=False):
+    # Delete the folder if it exists and then recreate it
+    if os.path.exists(folder_name):
+        shutil.rmtree(folder_name)
+    os.makedirs(folder_name, exist_ok=True)
+
+    # Select some indices from particles
+    random_indices = np.random.choice(np.arange(len(pa.x)), size=10, replace=False)
+
+    # Merge with the must_plot_indices, ensuring no duplicates
+    indices = np.union1d(random_indices, must_plot_indices)
+
+    # Loop over the selected indices and plot for each particle
+    for i, index in enumerate(indices):
+        # Access the particle's x, y, and z coordinates
+        x_val = pa.x[index]
+        y_val = pa.y[index]
+        z_val = pa.z[index]  # Assuming `z` coordinate exists
+
+        # Create a new figure
+        fig = plt.figure(figsize=(8, 8))
+
+        if dim == 3:
+            # Plotting in 3D
+            ax = fig.add_subplot(111, projection='3d')
+
+            # Plot all particles in blue
+            ax.scatter(pa.x, pa.y, pa.z, c='blue', alpha=0.5, label="All particles")
+
+            # Get the bonded particles for the current particle
+            bond_indices_i = pa.cnt_idxs[pa.cnt_limits[2 * index]:pa.cnt_limits[2 * index + 1]]
+
+            # Plot the bonded particles in black
+            ax.scatter(pa.x[bond_indices_i], pa.y[bond_indices_i], pa.z[bond_indices_i], c='red', label='Bonded particles')
+
+            # Highlight the current particle in red
+            ax.scatter(x_val, y_val, z_val, c='black', label=f'Particle {index}')
+
+            # Set titles and labels
+            ax.set_title(f"Particle {index} (3D)")
+            ax.set_xlabel("X coordinate")
+            ax.set_ylabel("Y coordinate")
+            ax.set_zlabel("Z coordinate")
+            ax.legend()
+
+        elif dim == 2:
+            # Plotting in 2D
+            ax = fig.add_subplot(111)
+
+            # Plot all particles in blue
+            ax.scatter(pa.x, pa.y, c='blue', alpha=0.5, label="All particles")
+
+            # Get the bonded particles for the current particle
+            bond_indices_i = pa.cnt_idxs[pa.cnt_limits[2 * index]:pa.cnt_limits[2 * index + 1]]
+
+            # Plot the bonded particles in black
+            ax.scatter(pa.x[bond_indices_i], pa.y[bond_indices_i], c='black', label='Bonded particles')
+
+            # Highlight the current particle in red
+            ax.scatter(x_val, y_val, c='red', label=f'Particle {index}')
+
+            # Set titles and labels
+            ax.set_title(f"Particle {index} (2D)")
+            ax.set_xlabel("X coordinate")
+            ax.set_ylabel("Y coordinate")
+            ax.legend()
+
+        # Show the plot if requested (this will open the plot in an interactive window)
+        if show_plot:
+            plt.show()
+
+        # Save the figure with a unique name inside the specified folder
+        plt.savefig(f"{folder_name}/particle_{index}_dim{dim}.png")
+
+        # Close the plot to avoid overlapping with the next plot
+        plt.close()
+
+    # print(f"Figures saved in folder: {folder_name}")
 
 
 def add_properties_stride(pa, stride=1, *props):
@@ -35,10 +142,17 @@ def add_properties_stride(pa, stride=1, *props):
         pa.add_property(name=prop, stride=stride)
 
 
-def get_particle_array_peridynamics(constants=None, **props):
-    pd_props = ['x0', 'y0', 'u0', 'v0', 'rad', 'fx', 'fy', 'fz']
+def get_particle_array_peridynamics(constants=None, dim=2, **props):
+    pd_props = ['x0', 'y0', 'z0', 'u0', 'v0', 'w0', 'rad', 'fx', 'fy', 'fz', 'is_static',
+                'fx_imposed',
+                'fy_imposed',
+                'fz_imposed',
+                'u_imposed',
+                'v_imposed',
+                'w_imposed',
+                'is_dynamic']
     consts = {
-        'no_bonds_limits': np.array([8], dtype='int'),
+        'no_bonds_limits': np.array([30], dtype='int'),
         'criterion_dist': -1.
     }
 
@@ -49,43 +163,65 @@ def get_particle_array_peridynamics(constants=None, **props):
 
     # contact indices
     pa.add_property('cnt_idxs', stride=consts['no_bonds_limits'], type='int')
-    # distance between the particles at the initiation  of the contacts
-    pa.add_property('delta_equi', stride=consts['no_bonds_limits'])
     # each particle contact limits
     pa.add_property('cnt_limits', stride=2, type='int')
     # each particle total number of contacts
     pa.add_property('tot_cnts', type='int')
 
-    # set the contacts to default values
+    # initial bond length
+    pa.add_property('undeformed_bond_length', stride=consts['no_bonds_limits'])
+    pa.add_property('deformed_bond_length', stride=consts['no_bonds_limits'])
+    pa.add_property('bond_damage', stride=consts['no_bonds_limits'])
+    pa.add_property('bond_pd_fx', stride=consts['no_bonds_limits'])
+    pa.add_property('bond_pd_fy', stride=consts['no_bonds_limits'])
+    pa.add_property('bond_pd_fz', stride=consts['no_bonds_limits'])
+
+    # set the contacts to default values (this is general to all contact
+    # tracking algorithms)
     pa.cnt_idxs[:] = -1
     pa.cnt_limits[:] = 0
     pa.tot_cnts[:] = 0
 
-    set_contacts(pa, pa.criterion_dist[0])
+    # initialize peridynamcis specific variables
+    pa.bond_damage[:] = 0.
+    pa.bond_pd_fx[:] = 0.
+    pa.bond_pd_fy[:] = 0.
+    pa.bond_pd_fz[:] = 0.
+
+    set_contacts_pd(pa, pa.criterion_dist[0], dim)
 
     # default property arrays to save out.
     pa.set_output_arrays([
-        'x', 'y', 'z', 'u', 'v', 'w', 'rho', 'm', 'h', 'pid', 'gid', 'tag', 'p'
+        'x', 'y', 'z', 'u', 'v', 'w', 'rho', 'm', 'h', 'pid', 'gid', 'tag', 'p',
+        'cnt_idxs',
+        'cnt_limits',
+        'tot_cnts',
+        'undeformed_bond_length',
+        'deformed_bond_length',
+        'bond_damage',
+        'bond_pd_fx',
+        'bond_pd_fy',
+        'bond_pd_fz'
     ])
 
     return pa
 
 
-class SetContactsBondedDEM(Equation):
+class SetContactsPD(Equation):
     def __init__(self, dest, sources, criterion_dist=0.3):
-        super(SetContactsBondedDEM, self).__init__(dest, sources)
+        super(SetContactsPD, self).__init__(dest, sources)
         self.criterion_dist = criterion_dist
 
-    def loop(self, d_idx, d_x, d_y, d_rad, d_cnt_idxs, d_cnt_limits,
-             d_tot_cnts, d_no_bonds_limits, d_delta_equi, s_idx, s_x, s_y,
-             s_rad, RIJ):
+    def loop(self, d_idx, d_x, d_y, d_z, d_cnt_idxs, d_cnt_limits,
+             d_tot_cnts, d_no_bonds_limits, d_undeformed_bond_length,
+             s_idx, s_x, s_y, s_z, RIJ):
         i = declare('int')
         if d_idx != s_idx:
             if RIJ < self.criterion_dist:
                 # add the contact index at the end of the list
                 i = d_idx * d_no_bonds_limits[0] + d_tot_cnts[d_idx]
                 d_cnt_idxs[i] = s_idx
-                d_delta_equi[i] = RIJ
+                d_undeformed_bond_length[i] = RIJ
 
                 # increment the total number of contacts
                 d_tot_cnts[d_idx] += 1
@@ -96,24 +232,42 @@ class SetContactsBondedDEM(Equation):
                     d_idx * d_no_bonds_limits[0] + d_tot_cnts[d_idx])
 
 
-def set_contacts(pa, criterion_dist):
+def set_contacts_pd(pa, criterion_dist, dim):
     assert criterion_dist > 0., "the criterion_dist has to be positive"
-    assert pa.no_bonds_limits > 0, "the criterion_dist has to be positive"
+    assert pa.no_bonds_limits > 0, "Number of max bonds needs to be positive"
 
     equations = [
         Group(
-            equations=[SetContactsBondedDEM(dest=pa.name, sources=[pa.name])])
+            equations=[SetContactsPD(dest=pa.name, sources=[pa.name])])
     ]
 
-    sph_eval = SPHEvaluator(arrays=[pa], equations=equations, dim=2,
-                            kernel=CubicSpline(dim=2))
+    sph_eval = SPHEvaluator(arrays=[pa], equations=equations, dim=dim,
+                            kernel=QuinticSpline(dim=dim))
 
     sph_eval.evaluate(0.1, 0.1)
 
 
+class PDGTVFIntegrator(Integrator):
+    def one_timestep(self, t, dt):
+        self.stage1()
+        self.do_post_stage(dt, 1)
+
+        self.compute_accelerations(0, update_nnps=False)
+
+        self.stage2()
+        # We update domain here alone as positions only change here.
+        # self.update_domain()
+        self.do_post_stage(dt, 2)
+
+        self.compute_accelerations(1)
+
+        self.stage3()
+        self.do_post_stage(dt, 3)
+
+
 class GTVFStepPeridynamics(IntegratorStep):
-    def stage1(self, d_idx, d_x, d_y, d_z, d_u, d_v, d_w, d_wx, d_wy, d_wz,
-               d_fx, d_fy, d_fz, d_tor_x, d_tor_y, d_tor_z, d_m, d_moi, dt):
+    def stage1(self, d_idx, d_x, d_y, d_z, d_u, d_v, d_w,
+               d_fx, d_fy, d_fz, d_m, dt):
         dtb2 = dt / 2.
 
         dtb2 = 0.5 * dt
@@ -128,7 +282,7 @@ class GTVFStepPeridynamics(IntegratorStep):
         d_z[d_idx] += dt * d_w[d_idx]
 
     def stage3(self, d_idx, d_x, d_y, d_z, d_u, d_v, d_w,
-               d_fx, d_fy, d_fz, d_tor_x, d_tor_y, d_tor_z, d_m, d_moi, dt):
+               d_fx, d_fy, d_fz, d_m, dt):
         dtb2 = dt / 2.
 
         dtb2 = 0.5 * dt
@@ -138,80 +292,60 @@ class GTVFStepPeridynamics(IntegratorStep):
 
 
 class ResetForce(Equation):
-    def initialize(self, d_idx, d_fx, d_fy, d_fz,
-                   d_tor_x, d_tor_y, d_tor_z):
+    def initialize(self, d_idx, d_fx, d_fy, d_fz):
         d_fx[d_idx] = 0.
         d_fy[d_idx] = 0.
         d_fz[d_idx] = 0.
-        d_tor_x[d_idx] = 0.
-        d_tor_y[d_idx] = 0.
-        d_tor_z[d_idx] = 0.
 
 
-class ParticleDampingForce(Equation):
-    def __init__(self, dest, sources, gamma_b=0.1):
-        self.gamma_b = gamma_b
-        super(ParticleDampingForce, self).__init__(dest, sources)
-
+class ApplyStaticAndDynamicBC(Equation):
     def initialize(self, d_idx, d_fx, d_fy, d_fz,
-                   d_tor_x, d_tor_y, d_tor_z, d_u, d_v, d_w,
-                   d_wx, d_wy, d_wz):
-        v_magn = (d_u[d_idx]**2. + d_v[d_idx]**2. + d_w[d_idx]**2.)**0.5
-        omega_magn = (d_wx[d_idx]**2. + d_wy[d_idx]**2. + d_wz[d_idx]**2.)**0.5
-        if v_magn > 1e-12:
-            fac = self.gamma_b / v_magn * 1e7
-            d_fx[d_idx] -= d_u[d_idx] * fac
-            d_fy[d_idx] -= d_v[d_idx] * fac
-            d_fz[d_idx] -= d_w[d_idx] * fac
-
-        if omega_magn > 1e-12:
-            fac = self.gamma_b / omega_magn
-            d_tor_x[d_idx] -= d_tor_x[d_idx] * d_wx[d_idx] * fac
-            d_tor_y[d_idx] -= d_tor_y[d_idx] * d_wy[d_idx] * fac
-            d_tor_z[d_idx] -= d_tor_z[d_idx] * d_wz[d_idx] * fac
-
-
-class FixStaticParticles(Equation):
-    def initialize(self, d_idx, d_fx, d_fy, d_fz,
-                   d_tor_x, d_tor_y, d_tor_z, d_u, d_v, d_w,
-                   d_wx, d_wy, d_wz, d_is_static):
+                   d_u, d_v, d_w,
+                   d_is_static,
+                   d_fx_imposed,
+                   d_fy_imposed,
+                   d_fz_imposed,
+                   d_u_imposed,
+                   d_v_imposed,
+                   d_w_imposed,
+                   d_is_dynamic):
         if d_is_static[d_idx] == 1.:
             d_fx[d_idx] = 0.
             d_fy[d_idx] = 0.
             d_fz[d_idx] = 0.
 
-            d_tor_x[d_idx] = 0.
-            d_tor_y[d_idx] = 0.
-            d_tor_z[d_idx] = 0.
-
             d_u[d_idx] = 0.
             d_v[d_idx] = 0.
             d_w[d_idx] = 0.
 
-            d_wx[d_idx] = 0.
-            d_wy[d_idx] = 0.
-            d_wz[d_idx] = 0.
+        if d_is_dynamic[d_idx] == 1.:
+            d_fx[d_idx] += d_fx_imposed[d_idx]
+            d_fy[d_idx] += d_fy_imposed[d_idx]
+            d_fz[d_idx] += d_fz_imposed[d_idx]
+
+            d_u[d_idx] = d_u_imposed[d_idx]
+            d_v[d_idx] = d_v_imposed[d_idx]
+            d_w[d_idx] = d_w_imposed[d_idx]
 
 
 class BondBasedElasticPDForce(Equation):
-    def initialize(self, d_idx, d_x, d_y, d_z, d_rad, d_cnt_idxs, d_cnt_limits,
-                   d_tot_cnts, d_no_bonds_limits, d_u, d_v, d_w,
-                   d_wy, d_wx, d_wz,
-                   d_init_length_bond,
-                   d_ft_x_bond, d_ft_y_bond, d_ft_z_bond,
-                   d_tor_x_bond, d_tor_y_bond, d_tor_z_bond, d_fx, d_fy, d_fz,
-                   d_tor_x, d_tor_y, d_tor_z, d_m, d_moi, dt):
+    def initialize(self, d_idx, d_x, d_y, d_z,
+                   d_u, d_v, d_w,
+                   d_cnt_idxs, d_cnt_limits,
+                   d_tot_cnts,
+                   d_bond_damage,
+                   d_deformed_bond_length,
+                   d_undeformed_bond_length,
+                   d_bond_pd_fx,
+                   d_bond_pd_fy,
+                   d_bond_pd_fz,
+                   d_fx, d_fy, d_fz,
+                   d_m, d_c, dt):
         i, p, q, sidx = declare('int', 4)
         # particle d_idx has its neighbours information in d_cnt_idxs
         # The range of such is
         p = d_cnt_limits[2 * d_idx]
         q = d_cnt_limits[2 * d_idx + 1]
-
-        # now loop over the neighbours and find the force on particle d_idx
-        k_n_bond = 1e7
-        k_t_bond = 1e5
-        k_tor = 1e7
-        k_ben = 1e5
 
         # now loop over the neighbours and find the force on particle d_idx
         for i in range(p, q):
@@ -231,26 +365,22 @@ class BondBasedElasticPDForce(Equation):
             # =========================
             # Compute the bond force
             # =========================
-            # TODO: Fix below
             # deformed bond length
-            deformed_bond_length = 1.
+            d_deformed_bond_length[i] = rij
             # bond force direction
-            bond_direction_x = 1.
-            bond_direction_y = 1.
-            bond_direction_z = 1.
+            bond_direction_x = n_ij_x
+            bond_direction_y = n_ij_y
+            bond_direction_z = n_ij_z
 
             # bond force
-            tmp = constant * bond_damage * (deformed_bond_length - undeformed_bond_length) / undeformed_bond_length
-            d_bond_pd_fx[i]= tmp * bond_direction_x
-            d_bond_pd_fy[i]= tmp * bond_direction_y
-            d_bond_pd_fz[i]= tmp * bond_direction_z
+            s = (d_deformed_bond_length[i] - d_undeformed_bond_length[i]) / d_undeformed_bond_length[i]
+            tmp = d_c[0] * d_bond_damage[i] * s
+            d_bond_pd_fx[i] = tmp * bond_direction_x
+            d_bond_pd_fy[i] = tmp * bond_direction_y
+            d_bond_pd_fz[i] = tmp * bond_direction_z
             # ============================
             # Compute the bond force ends
             # ============================
-
-            # ==================================
-            # Compute the tangential force ends
-            # ==================================
 
             # add the force to the global force of particle i
             d_fx[d_idx] += d_bond_pd_fx[i]
@@ -259,17 +389,10 @@ class BondBasedElasticPDForce(Equation):
 
 
 class PeridynamicsScheme(Scheme):
-    def __init__(self, solids, dim,
-                 kr=1e8, kf=1e5, fric_coeff=0.0, gx=0., gy=0., gz=0.):
+    def __init__(self, solids, dim, gx=0., gy=0., gz=0.):
         self.solids = solids
 
         self.dim = dim
-
-        self.debug = False
-
-        self.kr = kr
-        self.kf = kf
-        self.fric_coeff = fric_coeff
 
         self.gx = gx
         self.gy = gy
@@ -279,33 +402,32 @@ class PeridynamicsScheme(Scheme):
 
         self.attributes_changed()
 
-    def add_user_options(self, group):
-        group.add_argument("--kr-stiffness", action="store",
-                           dest="kr", default=1e8,
-                           type=float,
-                           help="Repulsive spring stiffness")
+    # def add_user_options(self, group):
+    #     group.add_argument("--kr-stiffness", action="store",
+    #                        dest="kr", default=1e8,
+    #                        type=float,
+    #                        help="Repulsive spring stiffness")
 
-        group.add_argument("--kf-stiffness", action="store",
-                           dest="kf", default=1e3,
-                           type=float,
-                           help="Tangential spring stiffness")
+    #     group.add_argument("--kf-stiffness", action="store",
+    #                        dest="kf", default=1e3,
+    #                        type=float,
+    #                        help="Tangential spring stiffness")
 
-        group.add_argument("--fric-coeff", action="store",
-                           dest="fric_coeff", default=0.0,
-                           type=float,
-                           help="Friction coefficient")
+    #     group.add_argument("--fric-coeff", action="store",
+    #                        dest="fric_coeff", default=0.0,
+    #                        type=float,
+    #                        help="Friction coefficient")
 
-    def consume_user_options(self, options):
-        _vars = ['kr', 'kf', 'fric_coeff']
-        data = dict((var, self._smart_getattr(options, var)) for var in _vars)
-        self.configure(**data)
+    # def consume_user_options(self, options):
+    #     _vars = ['kr', 'kf', 'fric_coeff']
+    #     data = dict((var, self._smart_getattr(options, var)) for var in _vars)
+    #     self.configure(**data)
 
     def configure_solver(self,
                          kernel=None,
                          integrator_cls=None,
                          extra_steppers=None,
                          **kw):
-        from pysph.sph.wc.gtvf import GTVFIntegrator
         from pysph.base.kernels import QuinticSpline
         from pysph.solver.solver import Solver
         if kernel is None:
@@ -315,8 +437,8 @@ class PeridynamicsScheme(Scheme):
         if extra_steppers is not None:
             steppers.update(extra_steppers)
 
-        bodystep = GTVFStepSpringBondModel()
-        integrator_cls = GTVFIntegrator
+        bodystep = GTVFStepPeridynamics()
+        integrator_cls = PDGTVFIntegrator
 
         for body in self.solids:
             if body not in steppers:
@@ -348,61 +470,18 @@ class PeridynamicsScheme(Scheme):
                 ResetForce(dest=name, sources=None))
 
             g5.append(
-                BondedDEMInterParticleLinearForce(
+                BondBasedElasticPDForce(
                     dest=name,
                     sources=None))
 
             g5.append(
-                ParticleDampingForce(
-                    dest=name,
-                    sources=None))
-
-            g5.append(
-                FixStaticParticles(
+                ApplyStaticAndDynamicBC(
                     dest=name,
                     sources=None))
 
         stage2.append(Group(equations=g5, real=False))
 
         return MultiStageEquations([stage1, stage2])
-
-    def setup_properties(self, particles, clean=True):
-        from pysph.examples.solid_mech.impact import add_properties
-
-        pas = dict([(p.name, p) for p in particles])
-
-        for solid in self.solids:
-            pa = pas[solid]
-
-            # properties to find the find on the rigid body by
-            # Mofidi, Drescher, Emden, Teschner
-            add_properties_stride(pa, pa.no_bonds_limits[0],
-                                  'init_length_bond',
-                                  'ft_x_bond', 'ft_y_bond', 'ft_z_bond',
-                                  'fx_bond', 'fy_bond', 'fz_bond',
-                                  'tor_x_bond', 'tor_y_bond',
-                                  'tor_z_bond')
-
-            add_properties(pa, 'fx', 'fy', 'fz', 'tor_x', 'tor_y', 'tor_z',
-                           'theta_x', 'theta_y', 'theta_z', 'moi',
-                           'wx', 'wy', 'wz', 'is_static')
-            pa.is_static[:] = 0.
-
-            # contact indices
-            pa.add_property('cnt_idxs', stride=pa.no_bonds_limits[0], type='int')
-            # distance between the particles at the initiation  of the contacts
-            pa.add_property('delta_equi', stride=pa.no_bonds_limits[0])
-            # each particle contact limits
-            pa.add_property('cnt_limits', stride=2, type='int')
-            # each particle total number of contacts
-            pa.add_property('tot_cnts', type='int')
-
-            # set the contacts to default values
-            pa.cnt_idxs[:] = -1
-            pa.cnt_limits[:] = 0
-            pa.tot_cnts[:] = 0
-
-            set_contacts(pa, pa.criterion_dist[0])
 
     def get_solver(self):
         return self.solver
