@@ -183,7 +183,7 @@ def get_particle_array_peridynamics(constants=None, dim=2, **props):
     pa.tot_cnts[:] = 0
 
     # initialize peridynamcis specific variables
-    pa.bond_damage[:] = 0.
+    pa.bond_damage[:] = 1.
     pa.bond_pd_fx[:] = 0.
     pa.bond_pd_fy[:] = 0.
     pa.bond_pd_fz[:] = 0.
@@ -267,13 +267,13 @@ class PDGTVFIntegrator(Integrator):
 
 class GTVFStepPeridynamics(IntegratorStep):
     def stage1(self, d_idx, d_x, d_y, d_z, d_u, d_v, d_w,
-               d_fx, d_fy, d_fz, d_m, dt):
+               d_fx, d_fy, d_fz, d_rho, dt):
         dtb2 = dt / 2.
 
         dtb2 = 0.5 * dt
-        d_u[d_idx] += dtb2 * d_fx[d_idx] / d_m[d_idx]
-        d_v[d_idx] += dtb2 * d_fy[d_idx] / d_m[d_idx]
-        d_w[d_idx] += dtb2 * d_fz[d_idx] / d_m[d_idx]
+        d_u[d_idx] += dtb2 * d_fx[d_idx] / d_rho[d_idx]
+        d_v[d_idx] += dtb2 * d_fy[d_idx] / d_rho[d_idx]
+        d_w[d_idx] += dtb2 * d_fz[d_idx] / d_rho[d_idx]
 
     def stage2(self, d_idx, d_x, d_y, d_z, d_u, d_v, d_w,
                dt):
@@ -282,13 +282,13 @@ class GTVFStepPeridynamics(IntegratorStep):
         d_z[d_idx] += dt * d_w[d_idx]
 
     def stage3(self, d_idx, d_x, d_y, d_z, d_u, d_v, d_w,
-               d_fx, d_fy, d_fz, d_m, dt):
+               d_fx, d_fy, d_fz, d_rho, dt):
         dtb2 = dt / 2.
 
         dtb2 = 0.5 * dt
-        d_u[d_idx] += dtb2 * d_fx[d_idx] / d_m[d_idx]
-        d_v[d_idx] += dtb2 * d_fy[d_idx] / d_m[d_idx]
-        d_w[d_idx] += dtb2 * d_fz[d_idx] / d_m[d_idx]
+        d_u[d_idx] += dtb2 * d_fx[d_idx] / d_rho[d_idx]
+        d_v[d_idx] += dtb2 * d_fy[d_idx] / d_rho[d_idx]
+        d_w[d_idx] += dtb2 * d_fz[d_idx] / d_rho[d_idx]
 
 
 class ResetForce(Equation):
@@ -375,6 +375,7 @@ class BondBasedElasticPDForce(Equation):
             # bond force
             s = (d_deformed_bond_length[i] - d_undeformed_bond_length[i]) / d_undeformed_bond_length[i]
             tmp = d_c[0] * d_bond_damage[i] * s
+            # tmp = d_c[0] * s
             d_bond_pd_fx[i] = tmp * bond_direction_x
             d_bond_pd_fy[i] = tmp * bond_direction_y
             d_bond_pd_fz[i] = tmp * bond_direction_z

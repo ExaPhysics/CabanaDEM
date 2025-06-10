@@ -28,6 +28,9 @@ class PDTensileTestQuasiStatic(Application):
         self.height = 1.
         self.spacing = 0.1
 
+        self.youngs_mod = 1e7
+        self.rho = 2000.
+
     def create_particles(self):
         import pysph.tools.geometry as G
         x, y = G.get_2d_block(self.spacing, self.length, self.height)
@@ -35,7 +38,8 @@ class PDTensileTestQuasiStatic(Application):
         spacing = self.spacing
         body = get_particle_array_peridynamics(
             dim=self.dim,
-            m=1.,
+            m=self.rho*self.spacing**2.,
+            rho=self.rho,
             x=x,
             y=y,
             z=0.,
@@ -43,8 +47,10 @@ class PDTensileTestQuasiStatic(Application):
             name="body",
             constants=dict(
                 no_bonds_limits=30,
-                criterion_dist=3. * spacing)
+                criterion_dist=3. * spacing,
+                c=(9*self.youngs_mod)/(np.pi*spacing**3*100.)
             )
+        )
         # self.scheme.setup_properties([body])
         # body.u[-1] = -10.0
 
@@ -66,9 +72,12 @@ class PDTensileTestQuasiStatic(Application):
             if body.x[i] < min_x + 0.2 * spacing:
                 indices_left.append(i)
 
-        # add static particle data
+        # add static and dynamic particle data
+        force = 1e9
         u_imposed = np.zeros(len(body.x))
+        fx_imposed = np.zeros(len(body.x))
         u_imposed[indices_left] = -10.
+        fx_imposed[indices_left] = -force
 
         indices_right = []
         max_x = max(body.x)
@@ -76,19 +85,21 @@ class PDTensileTestQuasiStatic(Application):
             if body.x[i] > max_x - 0.2 * spacing:
                 indices_right.append(i)
         u_imposed[indices_right] = 10.
+        fx_imposed[indices_right] = force
 
         body.is_dynamic[indices_left] = 1.
         body.is_dynamic[indices_right] = 1.
 
-        body.u_imposed[:] = u_imposed[:]
+        # body.u_imposed[:] = u_imposed[:]
+        body.fx_imposed[:] = fx_imposed[:]
 
         # scatter_bonded_particles(body, indices, "example_01_pd_rectangular_body_output/bonded_particles_data_figures_output", 2, False)
         return [body]
 
     def configure_scheme(self):
         dt = 1e-4
-        # tf = 1.
-        tf = 1000. * dt
+        tf = 1.
+        # tf = 1000. * dt
         pfreq = 100
 
         self.scheme.configure_solver(dt=dt, tf=tf, pfreq=pfreq)
