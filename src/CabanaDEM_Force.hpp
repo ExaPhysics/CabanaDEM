@@ -130,10 +130,10 @@ namespace CabanaDEM
         vel_j[0] = u ( j, 0 ) +
         (-omega( j, 1 ) * nij_z + omega( j, 2 ) * nij_y) * a_j;
 
-        vel_j[1] = u ( i, 1 ) +
+        vel_j[1] = u ( j, 1 ) +
         (-omega( j, 2 ) * nij_x + omega( j, 0 ) * nij_z) * a_j;
 
-        vel_j[2] = u ( i, 2 ) +
+        vel_j[2] = u ( j, 2 ) +
         (-omega( j, 0 ) * nij_y + omega( j, 1 ) * nij_x) * a_j;
 
         // Now the relative velocity of particle i w.r.t j at the contact
